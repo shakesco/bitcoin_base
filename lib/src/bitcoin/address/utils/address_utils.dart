@@ -66,9 +66,9 @@ class _BitcoinAddressUtils {
     }
     final decodedHex = BytesUtils.toHexString(decode.item1);
     if (bytesEqual(decode.item2, networks.p2pkhNetVer)) {
-      return P2pkhAddress.fromHash160(addrHash: decodedHex);
+      return P2pkhAddress.fromHash160(h160: decodedHex);
     } else if (bytesEqual(decode.item2, networks.p2shNetVer)) {
-      return P2shAddress.fromHash160(addrHash: decodedHex);
+      return P2shAddress.fromHash160(h160: decodedHex);
     }
     return null;
   }
@@ -102,7 +102,7 @@ class _BitcoinAddressUtils {
   ///
   /// Returns a SegwitAddress instance representing the converted SegWit address,
   /// or null if the conversion is not successful.
-  static SegwitAddress? toSegwitAddress(
+  static SegwitAddress? toP2wpkhAddress(
       String address, BasedUtxoNetwork network) {
     try {
       final convert = SegwitBech32Decoder.decode(network.p2wpkhHrp, address);
@@ -154,7 +154,7 @@ class _BitcoinAddressUtils {
       String address, BasedUtxoNetwork network) {
     BitcoinBaseAddress? baseAddress;
     if (network.supportedAddress.contains(SegwitAddresType.p2wpkh)) {
-      baseAddress = toSegwitAddress(address, network);
+      baseAddress = toP2wpkhAddress(address, network);
     }
     baseAddress ??= toLegacy(address, network);
     if (baseAddress == null) {
@@ -234,7 +234,7 @@ class _BitcoinAddressUtils {
       if (bytesEqual(network.p2pkhNetVer, version) ||
           bytesEqual(network.p2pkhWtNetVer, version)) {
         return P2pkhAddress.fromHash160(
-            addrHash: scriptHex,
+            h160: scriptHex,
             type:
                 legacyP2pk ? P2pkhAddressType.p2pkh : P2pkhAddressType.p2pkhwt);
       }
@@ -242,7 +242,7 @@ class _BitcoinAddressUtils {
       if (bytesEqual(network.p2shNetVer, version) ||
           bytesEqual(network.p2shwt20NetVer, version)) {
         return P2shAddress.fromHash160(
-            addrHash: scriptHex,
+            h160: scriptHex,
             type: legacyP2sh
                 ? P2shAddressType.p2pkhInP2sh
                 : P2shAddressType.p2pkhInP2shwt);
@@ -252,7 +252,7 @@ class _BitcoinAddressUtils {
       if (bytesEqual(network.p2sh32NetVer, version) ||
           bytesEqual(network.p2shwt32NetVer, version)) {
         return P2shAddress.fromHash160(
-            addrHash: scriptHex,
+            h160: scriptHex,
             type: legacyP2sh
                 ? P2shAddressType.p2pkhInP2sh32
                 : P2shAddressType.p2pkhInP2sh32wt);
@@ -271,7 +271,7 @@ class _BitcoinAddressUtils {
   /// Returns the address program in hexadecimal format if successful, or null if decoding or validation fails.
   ///
   /// Throws a [MessageException] if the specified network does not support the given address type.
-  static String? decodeLagacyAddressWithNetworkAndType(
+  static String? decodeLegacyAddressWithNetworkAndType(
       {required String address,
       required BitcoinAddressType type,
       required BasedUtxoNetwork network}) {

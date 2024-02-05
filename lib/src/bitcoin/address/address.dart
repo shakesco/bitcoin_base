@@ -11,6 +11,7 @@ library bitcoin_base.address;
 import 'package:bitcoin_base/bitcoin_base.dart';
 import 'package:bitcoin_base/src/utils/enumerate.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
+import 'package:bitcoin_base/src/utils/script.dart';
 part 'core.dart';
 part 'legacy_address.dart';
 part 'utils/address_utils.dart';

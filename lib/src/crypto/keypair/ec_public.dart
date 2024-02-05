@@ -12,8 +12,8 @@ class ECPublic {
 
   /// Constructs an ECPublic key from a byte representation.
   factory ECPublic.fromBytes(List<int> public) {
-    final publicKey = Bip32PublicKey.fromBytes(public, Bip32KeyData(),
-        Bip32Const.mainNetKeyNetVersions, EllipticCurveTypes.secp256k1);
+    final publicKey = Bip32PublicKey.fromBytes(
+        public, Bip32KeyData(), Bip32Const.mainNetKeyNetVersions, EllipticCurveTypes.secp256k1);
     return ECPublic(publicKey);
   }
 
@@ -45,17 +45,17 @@ class ECPublic {
     return BytesUtils.toHexString(QuickCrypto.hash160(bytes));
   }
 
-  /// toAddress generates a P2PKH (Pay-to-Public-Key-Hash) address from the ECPublic key.
+  /// toP2pkhAddress generates a P2PKH (Pay-to-Public-Key-Hash) address from the ECPublic key.
   /// If 'compressed' is true, the key is in compressed format.
-  P2pkhAddress toAddress({bool compressed = true}) {
+  P2pkhAddress toP2pkhAddress({bool compressed = true}) {
     final h16 = _toHash160(compressed: compressed);
     final toHex = BytesUtils.toHexString(h16);
-    return P2pkhAddress.fromHash160(addrHash: toHex);
+    return P2pkhAddress.fromHash160(h160: toHex);
   }
 
-  /// toSegwitAddress generates a P2WPKH (Pay-to-Witness-Public-Key-Hash) SegWit address
+  /// toP2wpkhAddress generates a P2WPKH (Pay-to-Witness-Public-Key-Hash) SegWit address
   /// from the ECPublic key. If 'compressed' is true, the key is in compressed format.
-  P2wpkhAddress toSegwitAddress({bool compressed = true}) {
+  P2wpkhAddress toP2wpkhAddress({bool compressed = true}) {
     final h16 = _toHash160(compressed: compressed);
     final toHex = BytesUtils.toHexString(h16);
 
@@ -65,8 +65,7 @@ class ECPublic {
   /// toP2pkAddress generates a P2PK (Pay-to-Public-Key) address from the ECPublic key.
   /// If 'compressed' is true, the key is in compressed format.
   P2pkAddress toP2pkAddress({bool compressed = true}) {
-    final h = toHex(compressed: compressed);
-    return P2pkAddress(publicKey: h);
+    return P2pkAddress(publicKey: this);
   }
 
   /// toRedeemScript generates a redeem script from the ECPublic key.
@@ -80,39 +79,34 @@ class ECPublic {
   /// wrapping a P2PK (Pay-to-Public-Key) script derived from the ECPublic key.
   /// If 'compressed' is true, the key is in compressed format.
   P2shAddress toP2pkhInP2sh({bool compressed = true, useBCHP2sh32 = false}) {
-    final addr = toAddress(compressed: compressed);
+    final addr = toP2pkhAddress(compressed: compressed);
     final script = addr.toScriptPubKey();
     if (useBCHP2sh32) {
       return P2shAddress.fromHash160(
-          addrHash: BytesUtils.toHexString(
-              QuickCrypto.sha256DoubleHash(script.toBytes())),
+          h160: BytesUtils.toHexString(QuickCrypto.sha256DoubleHash(script.toBytes())),
           type: P2shAddressType.p2pkhInP2sh32);
     }
-    return P2shAddress.fromScript(
-        script: script, type: P2shAddressType.p2pkhInP2sh);
+    return P2shAddress.fromRedeemScript(script: script, type: P2shAddressType.p2pkhInP2sh);
   }
 
   /// toP2pkInP2sh generates a P2SH (Pay-to-Script-Hash) address
   /// wrapping a P2PK (Pay-to-Public-Key) script derived from the ECPublic key.
   /// If 'compressed' is true, the key is in compressed format.
-  P2shAddress toP2pkInP2sh(
-      {bool compressed = true, bool useBCHP2sh32 = false}) {
+  P2shAddress toP2pkInP2sh({bool compressed = true, bool useBCHP2sh32 = false}) {
     final script = toRedeemScript(compressed: compressed);
     if (useBCHP2sh32) {
       return P2shAddress.fromHash160(
-          addrHash: BytesUtils.toHexString(
-              QuickCrypto.sha256DoubleHash(script.toBytes())),
+          h160: BytesUtils.toHexString(QuickCrypto.sha256DoubleHash(script.toBytes())),
           type: P2shAddressType.p2pkInP2sh32);
     }
-    return P2shAddress.fromScript(
-        script: script, type: P2shAddressType.p2pkInP2sh);
+    return P2shAddress.fromRedeemScript(script: script, type: P2shAddressType.p2pkInP2sh);
   }
 
   /// ToTaprootAddress generates a P2TR(Taproot) address from the ECPublic key
   /// and an optional script. The 'script' parameter can be used to specify
   /// custom spending conditions.
-  P2trAddress toTaprootAddress({List<List<Script>>? scripts}) {
-    final pubKey = toTapRotHex(script: scripts);
+  P2trAddress toTaprootAddress({List<List<Script>>? scripts, bool tweak = true}) {
+    final pubKey = toTapRotHex(script: scripts, tweak: tweak);
     return P2trAddress.fromProgram(program: pubKey);
   }
 
@@ -120,27 +114,29 @@ class ECPublic {
   /// wrapping a P2WPKH (Pay-to-Witness-Public-Key-Hash) script derived from the ECPublic key.
   /// If 'compressed' is true, the key is in compressed format.
   P2shAddress toP2wpkhInP2sh({bool compressed = true}) {
-    final addr = toSegwitAddress(compressed: compressed);
-    return P2shAddress.fromScript(
+    final addr = toP2wpkhAddress(compressed: compressed);
+    return P2shAddress.fromRedeemScript(
         script: addr.toScriptPubKey(), type: P2shAddressType.p2wpkhInP2sh);
+  }
+
+  /// toP2wpkhInP2sh generates a P2WSH (Pay-to-Witness-Script-Hash) address
+  /// wrapping a P2WPKH (Pay-to-Witness-Public-Key-Hash) script derived from the ECPublic key.
+  /// If 'compressed' is true, the key is in compressed format.
+  P2wshAddress toP2wpkhInP2wsh({bool compressed = true}) {
+    return P2wshAddress.fromRedeemScript(
+        script: toP2wpkhAddress(compressed: compressed).toScriptPubKey());
   }
 
   /// toP2wshScript generates a P2WSH (Pay-to-Witness-Script-Hash) script
   /// derived from the ECPublic key. If 'compressed' is true, the key is in compressed format.
-  Script toP2wshScript({bool compressed = true}) {
-    return Script(script: [
-      'OP_1',
-      toHex(compressed: compressed),
-      "OP_1",
-      "OP_CHECKMULTISIG"
-    ]);
+  Script toP2wshRedeemScript({bool compressed = true}) {
+    return Script(script: ['OP_1', toHex(compressed: compressed), "OP_1", "OP_CHECKMULTISIG"]);
   }
 
   /// toP2wshAddress generates a P2WSH (Pay-to-Witness-Script-Hash) address
   /// from the ECPublic key. If 'compressed' is true, the key is in compressed format.
   P2wshAddress toP2wshAddress({bool compressed = true}) {
-    return P2wshAddress.fromScript(
-        script: toP2wshScript(compressed: compressed));
+    return P2wshAddress.fromRedeemScript(script: toP2wshRedeemScript(compressed: compressed));
   }
 
   /// toP2wshInP2sh generates a P2SH (Pay-to-Script-Hash) address
@@ -148,7 +144,7 @@ class ECPublic {
   /// If 'compressed' is true, the key is in compressed format.
   P2shAddress toP2wshInP2sh({bool compressed = true}) {
     final p2sh = toP2wshAddress(compressed: compressed);
-    return P2shAddress.fromScript(
+    return P2shAddress.fromRedeemScript(
         script: p2sh.toScriptPubKey(), type: P2shAddressType.p2wshInP2sh);
   }
 
@@ -166,14 +162,15 @@ class ECPublic {
   }
 
   /// returns the x coordinate only as hex string after tweaking (needed for taproot)
-  String toTapRotHex({List<List<Script>>? script}) {
-    final scriptBytes =
-        script?.map((e) => e.map((e) => e.toBytes()).toList()).toList();
-    final pubKey = P2TRUtils.tweakPublicKey(
-        publicKey.point as ProjectiveECCPoint,
-        script: scriptBytes);
-    return BytesUtils.toHexString(
-        BigintUtils.toBytes(pubKey.x, length: publicKey.point.curve.baselen));
+  String toTapRotHex({List<List<Script>>? script, bool tweak = true}) {
+    var x = publicKey.point.x;
+    if (tweak) {
+      final scriptBytes = script?.map((e) => e.map((e) => e.toBytes()).toList()).toList();
+      final pubKey =
+          P2TRUtils.tweakPublicKey(publicKey.point as ProjectiveECCPoint, script: scriptBytes);
+      x = pubKey.x;
+    }
+    return BytesUtils.toHexString(BigintUtils.toBytes(x, length: publicKey.point.curve.baselen));
   }
 
   /// toXOnlyHex extracts and returns the x-coordinate (first 32 bytes) of the ECPublic key

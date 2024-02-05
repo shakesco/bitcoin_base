@@ -1,3 +1,4 @@
+import 'package:bitcoin_base/src/bitcoin/address/address.dart';
 import 'package:bitcoin_base/src/bitcoin/script/scripts.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
 
@@ -16,10 +17,13 @@ class Script {
         script = List.unmodifiable(script);
   final List<dynamic> script;
 
-  static Script fromRaw({required String hexData, bool hasSegwit = false}) {
+  static Script fromRaw({List<int>? byteData, String? hexData, bool hasSegwit = false}) {
     List<String> commands = [];
     int index = 0;
-    final scriptBytes = BytesUtils.fromHexString(hexData);
+    final scriptBytes = byteData ?? (hexData != null ? BytesUtils.fromHexString(hexData) : null);
+    if (scriptBytes == null) {
+      throw ArgumentError("Invalid script");
+    }
     while (index < scriptBytes.length) {
       int byte = scriptBytes[index];
       if (BitcoinOpCodeConst.CODE_OPS.containsKey(byte)) {
@@ -28,39 +32,88 @@ class Script {
       } else if (!hasSegwit && byte == 0x4c) {
         int bytesToRead = scriptBytes[index + 1];
         index = index + 1;
-        commands.add(BytesUtils.toHexString(
-            scriptBytes.sublist(index, index + bytesToRead)));
+        commands.add(BytesUtils.toHexString(scriptBytes.sublist(index, index + bytesToRead)));
         index = index + bytesToRead;
       } else if (!hasSegwit && byte == 0x4d) {
         int bytesToRead = readUint16LE(scriptBytes, index + 1);
 
         index = index + 3;
-        commands.add(BytesUtils.toHexString(
-            scriptBytes.sublist(index, index + bytesToRead)));
+        commands.add(BytesUtils.toHexString(scriptBytes.sublist(index, index + bytesToRead)));
         index = index + bytesToRead;
       } else if (!hasSegwit && byte == 0x4e) {
         int bytesToRead = readUint32LE(scriptBytes, index + 1);
 
         index = index + 5;
-        commands.add(BytesUtils.toHexString(
-            scriptBytes.sublist(index, index + bytesToRead)));
+        commands.add(BytesUtils.toHexString(scriptBytes.sublist(index, index + bytesToRead)));
         index = index + bytesToRead;
       } else {
-        final viAndSize =
-            IntUtils.decodeVarint(scriptBytes.sublist(index, index + 9));
+        final viAndSize = IntUtils.decodeVarint(scriptBytes.sublist(index, index + 9));
         int dataSize = viAndSize.item1;
         int size = viAndSize.item2;
         final lastIndex = (index + size + dataSize) > scriptBytes.length
             ? scriptBytes.length
             : (index + size + dataSize);
-        commands.add(BytesUtils.toHexString(
-            scriptBytes.sublist(index + size, lastIndex)));
+        commands.add(BytesUtils.toHexString(scriptBytes.sublist(index + size, lastIndex)));
         index = index + dataSize + size;
       }
     }
     return Script(script: commands);
   }
 
+  dynamic findScriptParam(int index) {
+    if (index < script.length) {
+      return script[index];
+    }
+    return null;
+  }
+
+  BitcoinAddressType? getAddressType() {
+    if (script.isEmpty) return null;
+
+    final first = findScriptParam(0);
+    final sec = findScriptParam(1);
+    if (sec == null || sec is! String) {
+      return null;
+    }
+
+    if (first == "OP_0") {
+      final lockingScriptBytes = opPushData(sec);
+
+      if (lockingScriptBytes.length == 21) {
+        return SegwitAddresType.p2wpkh;
+      } else if (lockingScriptBytes.length == 33) {
+        return SegwitAddresType.p2wsh;
+      }
+    } else if (first == "OP_1") {
+      final lockingScriptBytes = opPushData(sec);
+
+      if (lockingScriptBytes.length == 33) {
+        return SegwitAddresType.p2tr;
+      }
+    }
+
+    final third = findScriptParam(2);
+    final fourth = findScriptParam(3);
+    final fifth = findScriptParam(4);
+    if (first == "OP_DUP") {
+      if (sec == "OP_HASH160" &&
+          opPushData(third).length == 21 &&
+          fourth == "OP_EQUALVERIFY" &&
+          fifth == "OP_CHECKSIG") {
+        return P2pkhAddressType.p2pkh;
+      }
+    } else if (first == "OP_HASH160" && opPushData(sec).length == 21 && third == "OP_EQUAL") {
+      return P2shAddressType.p2pkhInP2sh;
+    } else if (sec == "OP_CHECKSIG") {
+      if (first.length == 66) {
+        return PubKeyAddressType.p2pk;
+      }
+    }
+
+    return null;
+  }
+
+  /// returns a serialized byte version of the script
   List<int> toBytes() {
     if (script.isEmpty) return <int>[];
     DynamicByteTracker scriptBytes = DynamicByteTracker();

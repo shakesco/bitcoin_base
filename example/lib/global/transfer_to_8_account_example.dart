@@ -17,7 +17,7 @@ void main() async {
       'cTALNpTpRbbxTCJ2A5Vq88UxT44w1PE2cYqiB3n4hRvzyCev1Wwo',
       netVersion: BitcoinNetwork.testnet.wifNetVer);
   final examplePublicKey2 = examplePrivateKey2.getPublic();
-  final p2pkhAddress = examplePublicKey2.toAddress();
+  final p2pkhAddress = examplePublicKey2.toP2pkhAddress();
 
   /// receiver addresses i use public key for generate address
   final examplePublicKey = ECPublic.fromHex(
@@ -25,9 +25,9 @@ void main() async {
 
   const network = BitcoinNetwork.testnet;
 
-  /// Reads all UTXOs (Unspent Transaction Outputs) associated with the account
+  /// Reads all UTXOs (Unspent Transaction outputs) associated with the account
   final elctrumUtxos = await provider.request(ElectrumScriptHashListUnspent(
-      scriptHash: examplePublicKey2.toAddress().pubKeyHash()));
+      scriptHash: examplePublicKey2.toP2pkhAddress().pubKeyHash()));
 
   /// Converts all UTXOs to a list of UtxoWithAddress, containing UTXO information along with address details.
   /// read spender utxos
@@ -48,12 +48,12 @@ void main() async {
   /// P2pkhAddress.fromAddress(address: ".....", network: network);
   /// P2trAddress.fromAddress(address: "....", network: network)
   /// ....
-  final List<BitcoinOutput> outPuts = [
+  final List<BitcoinOutput> outputs = [
     BitcoinOutput(
-        address: examplePublicKey.toAddress(),
+        address: examplePublicKey.toP2pkhAddress(),
         value: BtcUtils.toSatoshi("0.00001")),
     BitcoinOutput(
-        address: examplePublicKey.toSegwitAddress(),
+        address: examplePublicKey.toP2wpkhAddress(),
         value: BtcUtils.toSatoshi("0.00001")),
     BitcoinOutput(
         address: examplePublicKey.toTaprootAddress(),
@@ -76,18 +76,18 @@ void main() async {
   const String memo = "https://github.com/mrtnetwork";
 
   /// SUM OF OUTOUT AMOUNTS
-  final sumOfOutputs = outPuts.fold(
+  final sumOfOutputs = outputs.fold(
       BigInt.zero, (previousValue, element) => previousValue + element.value);
 
   /// ESTIMATE TRANSACTION SIZE
   int estimateSize = BitcoinTransactionBuilder.estimateTransactionSize(
       utxos: utxos,
       outputs: [
-        ...outPuts,
+        ...outputs,
 
         /// I add more output for change value to get correct transaction size
         BitcoinOutput(
-            address: examplePublicKey2.toAddress(), value: BigInt.zero)
+            address: examplePublicKey2.toP2pkhAddress(), value: BigInt.zero)
       ],
 
       /// network
@@ -113,13 +113,13 @@ void main() async {
   //// if we have change value we back amount to account
   if (changeValue > BigInt.zero) {
     final changeOutput = BitcoinOutput(
-        address: examplePublicKey2.toAddress(), value: changeValue);
-    outPuts.add(changeOutput);
+        address: examplePublicKey2.toP2pkhAddress(), value: changeValue);
+    outputs.add(changeOutput);
   }
 
   /// create transaction builder
   final builder = BitcoinTransactionBuilder(
-      outPuts: outPuts,
+      outputs: outputs,
       fee: fee,
       network: network,
       utxos: utxos,

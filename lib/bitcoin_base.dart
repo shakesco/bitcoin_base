@@ -8,6 +8,8 @@ library bitcoin_base;
 
 export 'package:bitcoin_base/src/bitcoin/address/address.dart';
 
+export 'package:bitcoin_base/src/bitcoin/address/util.dart';
+
 export 'package:bitcoin_base/src/bitcoin/script/scripts.dart';
 
 export 'package:bitcoin_base/src/crypto/crypto.dart';

@@ -8,7 +8,7 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 /// such as UTXOs, memo, enableRBF (Replace-By-Fee), and more.
 ///
 /// Parameters:
-/// - [outPuts]: List of Bitcoin outputs to be included in the transaction.
+/// - [outputs]: List of Bitcoin outputs to be included in the transaction.
 /// - [fee]: Transaction fee (BigInt) for processing the transaction.
 /// - [network]: The target Bitcoin network (Bitcoin Cash or Bitcoin SV).
 /// - [utxosInfo]: List of UtxoWithAddress objects providing information about Unspent Transaction Outputs (UTXOs).
@@ -20,7 +20,7 @@ import 'package:blockchain_utils/blockchain_utils.dart';
 ///
 /// Note: The constructor automatically validates the builder by calling the [_validateBuilder] method.
 class ForkedTransactionBuilder implements BasedBitcoinTransacationBuilder {
-  final List<BitcoinBaseOutput> outPuts;
+  final List<BitcoinBaseOutput> outputs;
   final BigInt fee;
   final BasedUtxoNetwork network;
   final List<UtxoWithAddress> utxosInfo;
@@ -30,7 +30,7 @@ class ForkedTransactionBuilder implements BasedBitcoinTransacationBuilder {
   final BitcoinOrdering inputOrdering;
   final BitcoinOrdering outputOrdering;
   ForkedTransactionBuilder(
-      {required this.outPuts,
+      {required this.outputs,
       required this.fee,
       required this.network,
       required List<UtxoWithAddress> utxos,
@@ -51,7 +51,7 @@ class ForkedTransactionBuilder implements BasedBitcoinTransacationBuilder {
     for (final i in utxosInfo) {
       i.ownerDetails.address.toAddress(network);
     }
-    for (final i in outPuts) {
+    for (final i in outputs) {
       if (i is BitcoinOutput) {
         i.address.toAddress(network);
       }
@@ -73,7 +73,7 @@ class ForkedTransactionBuilder implements BasedBitcoinTransacationBuilder {
         utxos: utxos,
 
         /// We select transaction outputs
-        outPuts: outputs,
+        outputs: outputs,
 
         /// Transaction fee
         /// Ensure that you have accurately calculated the amounts.
@@ -143,7 +143,7 @@ class ForkedTransactionBuilder implements BasedBitcoinTransacationBuilder {
       case P2pkhAddressType.p2pkhwt:
       case P2shAddressType.p2pkhInP2shwt:
       case P2shAddressType.p2pkhInP2sh32wt:
-        return senderPub.toAddress().toScriptPubKey();
+        return senderPub.toP2pkhAddress().toScriptPubKey();
       default:
         throw MessageException(
             "${utxo.utxo.scriptType} does not sudpport on ${network.conf.coinName.name}");
@@ -215,7 +215,7 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
       case P2shAddressType.p2pkhInP2shwt:
       case P2shAddressType.p2pkhInP2sh32:
       case P2shAddressType.p2pkhInP2sh32wt:
-        final script = senderPub.toAddress().toScriptPubKey();
+        final script = senderPub.toP2pkhAddress().toScriptPubKey();
         return [signedDigest, senderPub.toHex(), script.toHex()];
       case P2shAddressType.p2pkInP2sh:
       case P2shAddressType.p2pkInP2shwt:
@@ -256,20 +256,20 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
   }
 
   List<TxOutput> _buildOutputs() {
-    List<TxOutput> outputs = outPuts
+    List<TxOutput> builtOutputs = outputs
         .where((element) => element is! BitcoinBurnableOutput)
         .map((e) => e.toOutput)
         .toList();
 
     if (memo != null) {
-      outputs
+      builtOutputs
           .add(TxOutput(amount: BigInt.zero, scriptPubKey: _opReturn(memo!)));
     }
 
     if (outputOrdering == BitcoinOrdering.shuffle) {
-      outputs = outputs..shuffle();
+      builtOutputs = builtOutputs..shuffle();
     } else if (outputOrdering == BitcoinOrdering.bip69) {
-      outputs = outputs
+      builtOutputs = builtOutputs
         ..sort(
           (a, b) {
             final valueComparison = a.amount.compareTo(b.amount);
@@ -281,7 +281,7 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
           },
         );
     }
-    return List<TxOutput>.unmodifiable(outputs);
+    return List<TxOutput>.unmodifiable(builtOutputs);
   }
 
 /*
@@ -359,7 +359,7 @@ be retrieved by anyone who examines the blockchain's history.
       for (final i in sumOfTokenUtxos.entries) {
         if (sumTokenOutputAmouts[i.key] != i.value) {
           BigInt amount = sumTokenOutputAmouts[i.key] ?? BigInt.zero;
-          amount += outPuts
+          amount += outputs
               .whereType<BitcoinBurnableOutput>()
               .where((element) => element.categoryID == i.key)
               .fold(
@@ -383,12 +383,12 @@ be retrieved by anyone who examines the blockchain's history.
           final token = i.utxo.token!;
           if (token.hasAmount) continue;
           if (!token.hasNFT) continue;
-          final hasOneoutput = outPuts.whereType<BitcoinTokenOutput>().any(
+          final hasOneoutput = outputs.whereType<BitcoinTokenOutput>().any(
               (element) =>
                   element.utxoHash == i.utxo.txHash &&
                   element.token.category == token.category);
           if (hasOneoutput) continue;
-          final hasBurnableOutput = outPuts
+          final hasBurnableOutput = outputs
               .whereType<BitcoinBurnableOutput>()
               .any((element) =>
                   element.utxoHash == i.utxo.txHash &&

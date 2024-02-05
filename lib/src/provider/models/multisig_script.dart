@@ -53,12 +53,12 @@ class MultiSignatureAddress {
       throw ArgumentError(
           "${network.conf.coinName.name} Bitcoin forks that do not support Segwit. use toP2shAddress");
     }
-    return P2wshAddress.fromScript(script: multiSigScript);
+    return P2wshAddress.fromScriptPubkey(script: multiSigScript);
   }
 
   BitcoinBaseAddress toP2wshInP2shAddress({required BasedUtxoNetwork network}) {
     final p2wsh = toP2wshAddress(network: network);
-    return P2shAddress.fromScript(
+    return P2shAddress.fromScriptPubkey(
         script: p2wsh.toScriptPubKey(), type: P2shAddressType.p2wshInP2sh);
   }
 
@@ -71,11 +71,11 @@ class MultiSignatureAddress {
 
     if (addressType.hashLength == 32) {
       return P2shAddress.fromHash160(
-          addrHash: BytesUtils.toHexString(
+          h160: BytesUtils.toHexString(
               QuickCrypto.sha256DoubleHash(multiSigScript.toBytes())),
           type: addressType);
     }
-    return P2shAddress.fromScript(script: multiSigScript, type: addressType);
+    return P2shAddress.fromScriptPubkey(script: multiSigScript, type: addressType);
   }
 
   BitcoinBaseAddress fromType({

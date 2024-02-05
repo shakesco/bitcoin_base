@@ -37,9 +37,7 @@ abstract class BitcoinAddressType implements Enumerate {
     P2pkhAddressType.p2pkhwt
   ];
   @override
-  String toString() {
-    return "BitcoinAddressType.$value";
-  }
+  String toString() => value;
 }
 
 abstract class BitcoinBaseAddress {
@@ -62,9 +60,7 @@ class PubKeyAddressType implements BitcoinAddressType {
   @override
   int get hashLength => 20;
   @override
-  String toString() {
-    return "PubKeyAddressType.$value";
-  }
+  String toString() => value;
 }
 
 class P2pkhAddressType implements BitcoinAddressType {
@@ -83,9 +79,7 @@ class P2pkhAddressType implements BitcoinAddressType {
   @override
   int get hashLength => 20;
   @override
-  String toString() {
-    return "P2pkhAddressType.$value";
-  }
+  String toString() => value;
 }
 
 class P2shAddressType implements BitcoinAddressType {
@@ -135,9 +129,7 @@ class P2shAddressType implements BitcoinAddressType {
   final String value;
 
   @override
-  String toString() {
-    return "P2shAddressType.$value";
-  }
+  String toString() => value;
 }
 
 class SegwitAddresType implements BitcoinAddressType {
@@ -164,7 +156,5 @@ class SegwitAddresType implements BitcoinAddressType {
   }
 
   @override
-  String toString() {
-    return "SegwitAddresType.$value";
-  }
+  String toString() => value;
 }

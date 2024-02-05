@@ -42,7 +42,7 @@ BtcTransaction buildP2wpkTransaction({
         // index of input
         txInIndex: i,
         // script pub key of spender address
-        script: utxo[i].public().toAddress().toScriptPubKey(),
+        script: utxo[i].public().toP2pkhAddress().toScriptPubKey(),
         // amount of utxo
         amount: utxo[i].utxo.value);
     // sign transaction
@@ -107,12 +107,12 @@ BtcTransaction buildP2WSHTransaction({
         // index of utxo
         txInIndex: i,
         // P2WSH scripts
-        script: utxo[i].public().toP2wshScript(),
+        script: utxo[i].public().toP2wshRedeemScript(),
         // amount of utxo
         amount: utxo[i].utxo.value);
 
     // sign transaction
-    final signedTx = sign(txDigit, utxo[i].public().toP2wshScript().toHex(),
+    final signedTx = sign(txDigit, utxo[i].public().toP2wshRedeemScript().toHex(),
         BitcoinOpCodeConst.SIGHASH_ALL);
 
     // create unlock script
@@ -164,7 +164,7 @@ BtcTransaction buildP2pkhTransaction({
       // index of utxo
       txInIndex: i,
       // spender script pub key
-      script: utxo[i].public().toAddress().toScriptPubKey(),
+      script: utxo[i].public().toP2pkhAddress().toScriptPubKey(),
     );
 
     // sign transaction
@@ -205,10 +205,9 @@ BtcTransaction buildP2shNoneSegwitTransaction({
   final tx = BtcTransaction(inputs: txin, outputs: txOut, hasSegwit: false);
   for (int i = 0; i < txin.length; i++) {
     final ownerPublic = utxo[i].public();
-    final scriptPubKey =
-        utxo[i].ownerDetails.address.type == P2shAddressType.p2pkhInP2sh
-            ? ownerPublic.toAddress().toScriptPubKey()
-            : ownerPublic.toRedeemScript();
+    final scriptPubKey = utxo[i].ownerDetails.address.type == P2shAddressType.p2pkhInP2sh
+        ? ownerPublic.toP2pkhAddress().toScriptPubKey()
+        : ownerPublic.toRedeemScript();
     // For None-SegWit transactions, we use the 'getTransactionDigest' method
     // to obtain the input digest for signing.
     final txDigit = tx.getTransactionDigest(
@@ -275,8 +274,8 @@ BtcTransaction buildP2SHSegwitTransaction({
     final ownerPublic = utxo[i].public();
     final scriptPubKey =
         utxo[i].ownerDetails.address.type == P2shAddressType.p2wpkhInP2sh
-            ? ownerPublic.toAddress().toScriptPubKey()
-            : ownerPublic.toP2wshScript();
+            ? ownerPublic.toP2pkhAddress().toScriptPubKey()
+            : ownerPublic.toP2wshRedeemScript();
 
     // For SegWit transactions (excluding P2TR), we use the 'getTransactionSegwitDigit' method
     // to obtain the input digest for signing.
@@ -307,7 +306,7 @@ BtcTransaction buildP2SHSegwitTransaction({
     switch (utxo[i].ownerDetails.address.type) {
       case P2shAddressType.p2wpkhInP2sh:
         witnesses.add(TxWitnessInput(stack: [signedTx, ownerPublic.toHex()]));
-        final script = ownerPublic.toSegwitAddress().toScriptPubKey();
+        final script = ownerPublic.toP2wpkhAddress().toScriptPubKey();
         txin[i].scriptSig = Script(script: [script.toHex()]);
         break;
       case P2shAddressType.p2wshInP2sh:

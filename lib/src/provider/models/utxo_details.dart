@@ -223,7 +223,7 @@ class BitcoinUtxo {
 
   /// convert utxos to transaction input with specify sequence like ReplaceByeFee (4Bytes)
   TxInput toInput([List<int>? sequence]) {
-    return TxInput(txId: txHash, txIndex: vout, sequance: sequence);
+    return TxInput(txId: txHash, txIndex: vout, sequence: sequence);
   }
 
   @override
