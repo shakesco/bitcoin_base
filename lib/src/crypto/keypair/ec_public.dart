@@ -119,14 +119,6 @@ class ECPublic {
         script: addr.toScriptPubKey(), type: P2shAddressType.p2wpkhInP2sh);
   }
 
-  /// toP2wpkhInP2sh generates a P2WSH (Pay-to-Witness-Script-Hash) address
-  /// wrapping a P2WPKH (Pay-to-Witness-Public-Key-Hash) script derived from the ECPublic key.
-  /// If 'compressed' is true, the key is in compressed format.
-  P2wshAddress toP2wpkhInP2wsh({bool compressed = true}) {
-    return P2wshAddress.fromRedeemScript(
-        script: toP2wpkhAddress(compressed: compressed).toScriptPubKey());
-  }
-
   /// toP2wshScript generates a P2WSH (Pay-to-Witness-Script-Hash) script
   /// derived from the ECPublic key. If 'compressed' is true, the key is in compressed format.
   Script toP2wshRedeemScript({bool compressed = true}) {
