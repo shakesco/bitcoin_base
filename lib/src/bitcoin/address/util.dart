@@ -31,5 +31,5 @@ List<int> addressToOutputScript({required String address, required BasedUtxoNetw
     return P2trAddress.fromAddress(address: address, network: network).toScriptPubKey().toBytes();
   }
 
-  throw ArgumentError('$address has no matching Script');
+  return P2wpkhAddress.fromAddress(address: address, network: network).toScriptPubKey().toBytes();
 }
