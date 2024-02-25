@@ -107,7 +107,7 @@ class ECPublic {
   /// custom spending conditions.
   P2trAddress toTaprootAddress({List<List<Script>>? scripts, bool tweak = true}) {
     final pubKey = toTapRotHex(script: scripts, tweak: tweak);
-    return P2trAddress.fromProgram(program: pubKey);
+    return P2trAddress.fromProgram(program: pubKey, pubkey: this);
   }
 
   /// toP2wpkhInP2sh generates a P2SH (Pay-to-Script-Hash) address
@@ -190,5 +190,39 @@ class ECPublic {
     final verifyKey = BitcoinVerifier.fromKeyBytes(toBytes());
     return verifyKey.verifySchnorr(message, signature,
         tapleafScripts: tapleafScripts, isTweak: isTweak);
+  }
+
+  ECPublic tweakAdd(BigInt tweak) {
+    final point = publicKey.point as ProjectiveECCPoint;
+    // Compute the new public key after adding the tweak
+    final tweakedKey = point + (Curves.generatorSecp256k1 * tweak);
+
+    return ECPublic.fromBytes(tweakedKey.toBytes());
+  }
+
+  // Perform the tweak multiplication
+  ECPublic tweakMul(BigInt tweak) {
+    final point = publicKey.point as ProjectiveECCPoint;
+    // Perform the tweak multiplication
+    final tweakedKey = point * tweak;
+
+    return ECPublic.fromBytes(tweakedKey.toBytes());
+  }
+
+  ECPublic pubkeyAdd(ECPublic other) {
+    final tweakedKey = (publicKey.point as ProjectiveECCPoint) + other.publicKey.point;
+    return ECPublic.fromBytes(tweakedKey.toBytes());
+  }
+
+  ECPublic negate() {
+    // Negate the Y-coordinate by subtracting it from the field size (p).
+    final point = (publicKey.point as ProjectiveECCPoint);
+    final y = point.curve.p - point.y;
+    return ECPublic.fromBytes(BytesUtils.fromHexString(
+        "04${BytesUtils.toHexString(BigintUtils.toBytes(point.x, length: point.curve.baselen))}${BytesUtils.toHexString(BigintUtils.toBytes(y, length: point.curve.baselen))}"));
+  }
+
+  ECPublic clone() {
+    return ECPublic.fromBytes(publicKey.uncompressed);
   }
 }
