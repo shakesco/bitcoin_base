@@ -202,7 +202,7 @@ main() {
         Map<String, String>? preComputedLabels;
         for (var label in given['labels']) {
           receivingAddresses.add(silentPaymentOwner.toLabeledSilentPaymentAddress(label));
-          final generatedLabel = generateLabel(silentPaymentOwner.b_scan, label);
+          final generatedLabel = silentPaymentOwner.generateLabel(label);
 
           preComputedLabels ??= {};
           preComputedLabels[G.tweakMul(BigintUtils.fromBytes(generatedLabel)).toHex()] =

@@ -55,8 +55,12 @@ class SilentPaymentOwner extends SilentPaymentAddress {
         version: version);
   }
 
+  List<int> generateLabel(int m) {
+    return taggedHash(BytesUtils.concatBytes([b_scan.toBytes(), serUint32(m)]), "BIP0352/Label");
+  }
+
   SilentPaymentAddress toLabeledSilentPaymentAddress(int m) {
-    final B_m = B_spend.clone().tweakAdd(BigintUtils.fromBytes(generateLabel(b_scan, m)));
+    final B_m = B_spend.clone().tweakAdd(BigintUtils.fromBytes(generateLabel(m)));
     return SilentPaymentAddress(B_scan: B_scan, B_spend: B_m, hrp: hrp, version: version);
   }
 }
@@ -85,7 +89,7 @@ class SilentPaymentDestination extends SilentPaymentAddress {
   }
 }
 
-class SilentPaymentAddress {
+class SilentPaymentAddress implements BitcoinBaseAddress {
   static RegExp get regex => RegExp(r'(^|\s)t?sp(rt)?1[0-9a-zA-Z]{113}($|\s)');
 
   int version;
@@ -135,7 +139,12 @@ class SilentPaymentAddress {
   }
 
   @override
-  String toString() {
+  String toAddress(BasedUtxoNetwork network) {
+    return toString(network: network);
+  }
+
+  @override
+  String toString({BasedUtxoNetwork? network}) {
     return Bech32EncoderBase.encodeBech32(
       hrp,
       [
@@ -147,6 +156,22 @@ class SilentPaymentAddress {
       (hrp, data) => Bech32Utils.computeChecksum(hrp, data, Bech32Encodings.bech32m),
     );
   }
+
+  @override
+  BitcoinAddressType get type => SilentPaymentsAddresType.p2sp;
+
+  @override
+  Script toScriptPubKey() {
+    throw UnimplementedError();
+  }
+
+  @override
+  String pubKeyHash() {
+    throw UnimplementedError();
+  }
+
+  @override
+  String get addressProgram => "";
 }
 
 class Bech32U5 {

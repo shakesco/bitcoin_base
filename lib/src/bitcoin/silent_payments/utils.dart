@@ -110,7 +110,3 @@ ECPublic? getPubkeyFromInput(VinInfo vin) {
 List<int> serUint32(int n) {
   return BigintUtils.toBytes(BigInt.from(n), length: 4);
 }
-
-List<int> generateLabel(ECPrivate b_scan, int m) {
-  return taggedHash(BytesUtils.concatBytes([b_scan.toBytes(), serUint32(m)]), "BIP0352/Label");
-}
