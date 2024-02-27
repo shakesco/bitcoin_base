@@ -182,8 +182,8 @@ main() {
         final given = receivingTest["given"];
         final expected = receivingTest['expected'];
 
-        List<ECPublic> outputsToCheck =
-            (given['outputs'] as List<dynamic>).map((output) => ECPublic.fromHex(output)).toList();
+        List<String> outputsToCheck =
+            (given['outputs'] as List<dynamic>).map((output) => output.toString()).toList();
 
         final receivingAddresses = [];
 

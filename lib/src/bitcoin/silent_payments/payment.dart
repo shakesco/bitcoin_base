@@ -131,10 +131,10 @@ class SilentPaymentBuilder {
 
         if (result.containsKey(destination.toString())) {
           result[destination.toString()]!
-              .add(SilentPaymentOutput(P_mn.toTaprootAddress(tweak: false), destination.amount));
+              .add(SilentPaymentOutput(P_mn.toTaprootAddress(), destination.amount));
         } else {
           result[destination.toString()] = [
-            SilentPaymentOutput(P_mn.toTaprootAddress(tweak: false), destination.amount)
+            SilentPaymentOutput(P_mn.toTaprootAddress(), destination.amount)
           ];
         }
 
@@ -146,7 +146,7 @@ class SilentPaymentBuilder {
   }
 
   Map<String, List<String>> scanOutputs(
-      ECPrivate b_scan, ECPublic B_spend, List<ECPublic> outputsToCheck,
+      ECPrivate b_scan, ECPublic B_spend, List<String> outputsToCheck,
       {Map<String, String>? precomputedLabels}) {
     final tweakDataForRecipient = receiverTweak != null
         ? ECPublic.fromHex(receiverTweak!)
@@ -170,30 +170,29 @@ class SilentPaymentBuilder {
       for (var i = 0; i < length; i++) {
         final output = outputsToCheck[i];
 
-        if (BytesUtils.compareBytes(
-                output.toCompressedBytes().sublist(1), P_k.toCompressedBytes().sublist(1)) ==
-            0) {
-          matches[output.toHex()] = [BytesUtils.toHexString(t_k)];
+        if (output == P_k.toTaprootAddress().toScriptPubKey().toHex() ||
+            (BytesUtils.compareBytes(ECPublic.fromHex(output).toCompressedBytes().sublist(1),
+                    P_k.toCompressedBytes().sublist(1)) ==
+                0)) {
+          matches[P_k.toHex()] = [BytesUtils.toHexString(t_k)];
           outputsToCheck.removeAt(i);
           k++;
           break;
         }
 
         if (precomputedLabels != null && precomputedLabels.isNotEmpty) {
-          var m_G_sub = output.clone().pubkeyAdd(P_k.clone().negate());
+          var m_G_sub = ECPublic.fromHex(output).pubkeyAdd(P_k.clone().negate());
           var m_G = precomputedLabels[m_G_sub.toHex()];
 
           if (m_G == null) {
-            m_G_sub = output.clone().negate().pubkeyAdd(P_k.clone().negate());
+            m_G_sub = ECPublic.fromHex(output).negate().pubkeyAdd(P_k.clone().negate());
             m_G = precomputedLabels[m_G_sub.toHex()];
           }
 
           if (m_G != null) {
-            final P_km = P_k.clone()
-                .tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)))
-                .toCompressedBytes();
+            final P_km = P_k.clone().tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)));
 
-            matches[BytesUtils.toHexString(P_km)] = [
+            matches[P_km.toHex()] = [
               ECPrivate.fromBytes(t_k)
                   .tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)))
                   .toHex(),
