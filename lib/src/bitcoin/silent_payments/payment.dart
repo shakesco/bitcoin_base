@@ -16,22 +16,26 @@ class ECPrivateInfo {
 }
 
 class SilentPaymentBuilder {
-  final List<Outpoint> outpoints;
-  final List<ECPublic> pubkeys;
+  final List<Outpoint>? outpoints;
+  final List<ECPublic>? pubkeys;
   late ECPublic A_sum;
   late List<int> inputHash;
+  String? receiverTweak;
 
   SilentPaymentBuilder({
-    required this.outpoints,
-    required this.pubkeys,
+    this.outpoints,
+    this.pubkeys,
+    this.receiverTweak,
   }) {
-    _getAsum();
-    _getInputHash();
+    if (receiverTweak == null) {
+      _getAsum();
+      _getInputHash();
+    }
   }
 
   void _getAsum() {
-    final head = pubkeys.first;
-    final tail = pubkeys.sublist(1);
+    final head = pubkeys!.first;
+    final tail = pubkeys!.sublist(1);
 
     A_sum = tail.fold<ECPublic>(head, (acc, item) => ECPublic(acc.publicKey).pubkeyAdd(item));
   }
@@ -39,7 +43,7 @@ class SilentPaymentBuilder {
   void _getInputHash() {
     final sortedOutpoints = <List<int>>[];
 
-    for (final outpoint in outpoints) {
+    for (final outpoint in outpoints!) {
       final vout = outpoint.index;
 
       sortedOutpoints.add(BytesUtils.concatBytes([
@@ -99,7 +103,7 @@ class SilentPaymentBuilder {
             a_sum!.clone().tweakMul(BigintUtils.fromBytes(inputHash)).toBytes();
 
         final ecdhSharedSecret =
-            ECPublic(B_scan.publicKey).tweakMul(BigintUtils.fromBytes(senderPartialSecret)).toHex();
+            B_scan.clone().tweakMul(BigintUtils.fromBytes(senderPartialSecret)).toHex();
 
         silentPaymentGroups[B_scan_hex] = {
           ecdhSharedSecret: [silentPaymentDestination]
@@ -144,7 +148,9 @@ class SilentPaymentBuilder {
   Map<String, List<String>> scanOutputs(
       ECPrivate b_scan, ECPublic B_spend, List<ECPublic> outputsToCheck,
       {Map<String, String>? precomputedLabels}) {
-    final tweakDataForRecipient = A_sum.clone().tweakMul(BigintUtils.fromBytes(inputHash));
+    final tweakDataForRecipient = receiverTweak != null
+        ? ECPublic.fromHex(receiverTweak!)
+        : A_sum.clone().tweakMul(BigintUtils.fromBytes(inputHash));
     final ecdhSharedSecret = tweakDataForRecipient.tweakMul(b_scan.toBigInt());
 
     final matches = <String, List<String>>{};

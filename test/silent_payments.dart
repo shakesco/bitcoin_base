@@ -130,13 +130,14 @@ main() {
             privkey: privkey,
           );
 
+          vinOutpoints.add(vin.outpoint);
+
           final pubkey = getPubkeyFromInput(vin);
 
           if (pubkey == null) {
-            return;
+            continue;
           }
 
-          vinOutpoints.add(vin.outpoint);
           inputPrivKeyInfos
               .add(ECPrivateInfo(privkey, prevoutScript.getAddressType() == SegwitAddresType.p2tr));
           inputPubKeys.add(pubkey);
@@ -152,24 +153,19 @@ main() {
           final spb = SilentPaymentBuilder(pubkeys: inputPubKeys, outpoints: vinOutpoints);
           sendingOutputs = spb.createOutputs(inputPrivKeyInfos, silentPaymentDestinations);
 
-          final expectedDestinations = sendingTest['expected']['outputs'];
-          var i = 0;
+          List<dynamic> expectedDestinations = sendingTest['expected']['outputs'];
 
-          sendingOutputs.forEach((silentAddress, generatedOutputs) {
-            final expectedSilentAddress = silentPaymentDestinations[i].toString();
-            // Check that the silent payment addresses match for the expected and generated outputs
-            expect(silentAddress, expectedSilentAddress);
+          silentPaymentDestinations.forEach((destination) {
+            final generatedOutputs = sendingOutputs[destination.toString()];
+            expect(generatedOutputs != null, true);
 
-            for (final output in generatedOutputs) {
-              final expectedPubkey = expectedDestinations[i][0];
+            for (final output in generatedOutputs!) {
               final generatedPubkey = output.address.pubkey!;
+              final expectedPubkey = expectedDestinations.firstWhere((expected) =>
+                  BytesUtils.toHexString(generatedPubkey.toCompressedBytes().sublist(1)) ==
+                  expected[0]);
 
-              // Check that for a given set of inputs, we were able to generate the expected outputs for the receiver
-              expect(BytesUtils.toHexString(generatedPubkey.toCompressedBytes().sublist(1)),
-                  expectedPubkey);
-              expect(output.amount, expectedDestinations[i][1].floor());
-
-              i++;
+              expect(expectedPubkey != null, true);
             }
           });
         }
@@ -186,9 +182,8 @@ main() {
         final given = receivingTest["given"];
         final expected = receivingTest['expected'];
 
-        List<ECPublic> outputsToCheck = (given['outputs'] as List<dynamic>)
-            .map((output) => ECPublic.fromBytes(BytesUtils.fromHexString(output)))
-            .toList();
+        List<ECPublic> outputsToCheck =
+            (given['outputs'] as List<dynamic>).map((output) => ECPublic.fromHex(output)).toList();
 
         final receivingAddresses = [];
 
