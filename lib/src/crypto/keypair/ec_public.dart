@@ -1,6 +1,7 @@
 import 'package:bitcoin_base/src/bitcoin/address/address.dart';
 import 'package:bitcoin_base/src/bitcoin/script/script.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
+import 'package:blockchain_utils/crypto/crypto/cdsa/point/base.dart';
 
 class ECPublic {
   final Bip32PublicKey publicKey;
@@ -151,6 +152,10 @@ class ECPublic {
   /// toCompressedBytes returns the compressed byte representation of the ECPublic key.
   List<int> toCompressedBytes() {
     return publicKey.compressed;
+  }
+
+  EncodeType? getEncodeType() {
+    return publicKey.point.encodeType;
   }
 
   /// returns the x coordinate only as hex string after tweaking (needed for taproot)

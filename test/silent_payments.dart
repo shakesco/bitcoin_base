@@ -3,97 +3,18 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:bitcoin_base/src/bitcoin/script/outpoint.dart';
 import 'package:bitcoin_base/src/bitcoin/script/scripts.dart';
 import 'package:bitcoin_base/src/bitcoin/address/address.dart';
 import 'package:bitcoin_base/src/bitcoin/silent_payments/silent_payments.dart';
 import 'package:bitcoin_base/src/crypto/crypto.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
+import 'package:blockchain_utils/crypto/crypto/cdsa/point/base.dart';
 import 'package:test/test.dart';
 
 // G , needed for generating the labels "database"
 final G = ECPublic.fromBytes(BigintUtils.toBytes(Curves.generatorSecp256k1.x, length: 32));
 
 main() {
-  group('Silent Payment Addresses', () {
-    // const scanKey = '036a1035a192f8f5fd375556f36ea4abc387361d32c709831ec624a5b73d0b7b9d';
-    // const spendKey = '028eaf19db65cece905cf2b3eab811148d6fe874089a4a68e5d8b0a1a0904f6bd0';
-    // const silentAddress =
-    'sprt1qqd4pqddpjtu0tlfh24t0xm4y40pcwdsaxtrsnqc7ccj2tdeapdae6q5w4uvakewwe6g9eu4na2upz9yddl58gzy6ff5wtk9s5xsfqnmt6q30zssg';
-
-    // test('can encode scan and spend key to silent payment address', () {
-    //   expect(
-    //       SilentPaymentAddress(
-    //         scanPubkey: ECPublic.fromHex(scanKey),
-    //         spendPubkey: ECPublic.fromHex(spendKey),
-    //         hrp: 'sprt',
-    //         version: 0,
-    //       ).toString(),
-    //       silentAddress);
-    // });
-    // test('can decode scan and spend key from silent payment address', () {
-    //   expect(
-    //       SilentPaymentAddress.fromAddress(silentAddress).toString(),
-    //       SilentPaymentAddress(
-    //               scanPubkey: ECPublic.fromHex(scanKey),
-    //               spendPubkey: ECPublic.fromHex(spendKey),
-    //               hrp: 'sprt',
-    //               version: 0)
-    //           .toString());
-    // });
-
-    // test('can derive scan and spend key from master key', () async {
-    //   const mnemonic =
-    //       'praise you muffin lion enable neck grocery crumble super myself license ghost';
-    //   final address = SilentPaymentOwner.fromMnemonic(mnemonic);
-
-    //   final seed = Bip39MnemonicDecoder().decode(mnemonic);
-    //   final root = Bip32Slip10Secp256k1.fromSeed(seed, Bip32Const.testNetKeyNetVersions);
-
-    //   expect(address.scanPrivkey.toHex(), root.derivePath(SCAN_PATH).privateKey.toHex());
-    //   expect(address.scanPubkey.toHex(), root.derivePath(SCAN_PATH).publicKey.toHex());
-
-    //   expect(address.spendPrivkey.toHex(), root.derivePath(SPEND_PATH).privateKey.toHex());
-    //   expect(address.spendPubkey.toHex(), root.derivePath(SPEND_PATH).publicKey.toHex());
-    // });
-
-    // test('can create a labeled silent payment address', () {
-    //   final given = [
-    //     [
-    //       '0220bcfac5b99e04ad1a06ddfb016ee13582609d60b6291e98d01a9bc9a16c96d4',
-    //       '025cc9856d6f8375350e123978daac200c260cb5b5ae83106cab90484dcd8fcf36',
-    //       '0000000000000000000000000000000000000000000000000000000000000001',
-    //       'sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqah4hxfsjdwyaeel4g8x2npkj7qlvf2692l5760z5ut0ggnlrhdzsy3cvsj',
-    //     ],
-    //     [
-    //       '0220bcfac5b99e04ad1a06ddfb016ee13582609d60b6291e98d01a9bc9a16c96d4',
-    //       '025cc9856d6f8375350e123978daac200c260cb5b5ae83106cab90484dcd8fcf36',
-    //       '0000000000000000000000000000000000000000000000000000000000000539',
-    //       'sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgq562yg7htxyg8eq60rl37uul37jy62apnf5ru62uef0eajpdfrnp5cmqndj',
-    //     ],
-    //     [
-    //       '03b4cc0b090b6f49a684558852db60ee5eb1c5f74352839c3d18a8fc04ef7354e0',
-    //       '03bc95144daf15336db3456825c70ced0a4462f89aca42c4921ee7ccb2b3a44796',
-    //       '91cb04398a508c9d995ff4a18e5eae24d5e9488309f189120a3fdbb977978c46',
-    //       'sp1qqw6vczcfpdh5nf5y2ky99kmqae0tr30hgdfg88parz50cp80wd2wqqll5497pp2gcr4cmq0v5nv07x8u5jswmf8ap2q0kxmx8628mkqanyu63ck8',
-    //     ],
-    //   ];
-
-    //   for (final data in given) {
-    //     final scanKey = data[0];
-    //     final spendKey = data[1];
-    //     final label = data[2];
-    //     final address = data[3];
-    //     final result = SilentPaymentAddress(
-    //             B_scan: ECPublic.fromHex(scanKey), B_spend: ECPublic.fromHex(spendKey))
-    //         .createLabeledSilentPaymentAddress(ECPublic.fromHex(scanKey),
-    //             ECPublic.fromHex(spendKey), BigintUtils.fromBytes(BytesUtils.fromHexString(label)));
-
-    //     expect(result.toString(), address);
-    //   }
-    // });
-  });
-
   final fixtures =
       json.decode(File('test/fixtures/silent_payments.json').readAsStringSync(encoding: utf8));
 
@@ -134,7 +55,7 @@ main() {
 
           final pubkey = getPubkeyFromInput(vin);
 
-          if (pubkey == null) {
+          if (pubkey == null || pubkey.getEncodeType() != EncodeType.compressed) {
             continue;
           }
 
@@ -156,18 +77,18 @@ main() {
           List<dynamic> expectedDestinations = sendingTest['expected']['outputs'];
 
           silentPaymentDestinations.forEach((destination) {
-            final generatedOutputs = sendingOutputs[destination.toString()];
-            expect(generatedOutputs != null, true);
-
-            for (final output in generatedOutputs!) {
-              final generatedPubkey = output.address.pubkey!;
-              final expectedPubkey = expectedDestinations.firstWhere((expected) =>
-                  BytesUtils.toHexString(generatedPubkey.toCompressedBytes().sublist(1)) ==
-                  expected[0]);
-
-              expect(expectedPubkey != null, true);
-            }
+            expect(sendingOutputs[destination.toString()] != null, true);
           });
+
+          final generatedOutputs = sendingOutputs.values.expand((element) => element).toList();
+          for (final expected in expectedDestinations) {
+            final expectedPubkey = expected[0];
+            final generatedPubkey = generatedOutputs.firstWhere((output) =>
+                BytesUtils.toHexString(output.address.pubkey!.toCompressedBytes().sublist(1)) ==
+                expectedPubkey);
+
+            expect(generatedPubkey != null, true);
+          }
         }
       }
 
@@ -185,7 +106,7 @@ main() {
         List<String> outputsToCheck =
             (given['outputs'] as List<dynamic>).map((output) => output.toString()).toList();
 
-        final receivingAddresses = [];
+        final List<SilentPaymentOwner> receivingAddresses = [];
 
         final silentPaymentOwner = SilentPaymentOwner.fromPrivateKeys(
             b_scan: ECPrivate.fromHex(given["key_material"]["scan_priv_key"]),
@@ -204,8 +125,9 @@ main() {
               BytesUtils.toHexString(generatedLabel);
         }
 
-        for (var address in receivingAddresses) {
-          expect(address.toString(), expected['addresses'][receivingAddresses.indexOf(address)]);
+        for (var address in expected['addresses']) {
+          expect(receivingAddresses.indexWhere((sp) => sp.toString() == address.toString()),
+              isNot(-1));
         }
 
         for (var input in given['vin']) {
@@ -227,13 +149,14 @@ main() {
             prevOutScript: prevoutScript,
           );
 
+          vinOutpoints.add(vin.outpoint);
+
           final pubkey = getPubkeyFromInput(vin);
 
-          if (pubkey == null) {
-            return;
+          if (pubkey == null || pubkey.getEncodeType() != EncodeType.compressed) {
+            continue;
           }
 
-          vinOutpoints.add(vin.outpoint);
           inputPubKeys.add(pubkey);
         }
 

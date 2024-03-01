@@ -59,9 +59,10 @@ class SilentPaymentOwner extends SilentPaymentAddress {
     return taggedHash(BytesUtils.concatBytes([b_scan.toBytes(), serUint32(m)]), "BIP0352/Label");
   }
 
-  SilentPaymentAddress toLabeledSilentPaymentAddress(int m) {
+  SilentPaymentOwner toLabeledSilentPaymentAddress(int m) {
     final B_m = B_spend.clone().tweakAdd(BigintUtils.fromBytes(generateLabel(m)));
-    return SilentPaymentAddress(B_scan: B_scan, B_spend: B_m, hrp: hrp, version: version);
+    return SilentPaymentOwner(
+        b_scan: b_scan, b_spend: b_spend, B_scan: B_scan, B_spend: B_m, hrp: hrp, version: version);
   }
 }
 

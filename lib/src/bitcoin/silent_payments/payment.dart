@@ -170,7 +170,9 @@ class SilentPaymentBuilder {
       for (var i = 0; i < length; i++) {
         final output = outputsToCheck[i];
 
-        if (output == P_k.toTaprootAddress().toScriptPubKey().toHex() ||
+        if (output ==
+                BytesUtils.toHexString(
+                    P_k.toTaprootAddress().toScriptPubKey().toBytes().sublist(2)) ||
             (BytesUtils.compareBytes(ECPublic.fromHex(output).toCompressedBytes().sublist(1),
                     P_k.toCompressedBytes().sublist(1)) ==
                 0)) {
