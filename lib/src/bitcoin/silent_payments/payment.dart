@@ -101,7 +101,6 @@ class SilentPaymentBuilder {
       } else {
         final senderPartialSecret =
             a_sum!.clone().tweakMul(BigintUtils.fromBytes(inputHash)).toBytes();
-
         final ecdhSharedSecret =
             B_scan.clone().tweakMul(BigintUtils.fromBytes(senderPartialSecret)).toHex();
 
@@ -202,8 +201,38 @@ class SilentPaymentBuilder {
             ];
 
             outputsToCheck.removeAt(i);
-            k++; // Increment counter
+            k++;
             break;
+          }
+
+          if (m_G == null) {
+            final labels = precomputedLabels.keys;
+            bool found = false;
+            for (final label in labels) {
+              final tweak = precomputedLabels[label];
+              final P_km =
+                  P_k.clone().tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(tweak!)));
+
+              if (BytesUtils.toHexString(
+                      P_km.toTaprootAddress().toScriptPubKey().toBytes().sublist(2)) ==
+                  output) {
+                matches[P_km.toHex()] = [
+                  ECPrivate.fromBytes(t_k)
+                      .tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(tweak)))
+                      .toHex(),
+                  label
+                ];
+
+                outputsToCheck.removeAt(i);
+                k++;
+                found = true;
+                break;
+              }
+            }
+
+            if (found) {
+              break;
+            }
           }
         }
 
