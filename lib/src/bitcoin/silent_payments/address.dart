@@ -60,7 +60,7 @@ class SilentPaymentOwner extends SilentPaymentAddress {
   }
 
   SilentPaymentOwner toLabeledSilentPaymentAddress(int m) {
-    final B_m = B_spend.clone().tweakAdd(BigintUtils.fromBytes(generateLabel(m)));
+    final B_m = B_spend.tweakAdd(BigintUtils.fromBytes(generateLabel(m)));
     return SilentPaymentOwner(
         b_scan: b_scan, b_spend: b_spend, B_scan: B_scan, B_spend: B_m, hrp: hrp, version: version);
   }

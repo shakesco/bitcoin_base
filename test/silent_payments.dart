@@ -76,9 +76,9 @@ main() {
 
           List<dynamic> expectedDestinations = sendingTest['expected']['outputs'];
 
-          silentPaymentDestinations.forEach((destination) {
+          for (final destination in silentPaymentDestinations) {
             expect(sendingOutputs[destination.toString()] != null, true);
-          });
+          }
 
           final generatedOutputs = sendingOutputs.values.expand((element) => element).toList();
           for (final expected in expectedDestinations) {
@@ -87,7 +87,10 @@ main() {
                 BytesUtils.toHexString(output.address.pubkey!.toCompressedBytes().sublist(1)) ==
                 expectedPubkey);
 
-            expect(generatedPubkey != null, true);
+            expect(
+                BytesUtils.toHexString(
+                    generatedPubkey.address.pubkey!.toCompressedBytes().sublist(1)),
+                expectedPubkey);
           }
         }
       }
@@ -163,8 +166,8 @@ main() {
         if (inputPubKeys.isNotEmpty) {
           final spb = SilentPaymentBuilder(pubkeys: inputPubKeys, outpoints: vinOutpoints);
 
-          final addToWallet = spb.scanOutputs(
-              silentPaymentOwner.b_scan, silentPaymentOwner.B_spend, outputsToCheck,
+          final addToWallet = spb.scanOutputs(silentPaymentOwner.b_scan, silentPaymentOwner.B_spend,
+              outputsToCheck.map((o) => getScriptFromOutput(o, 0)).toList(),
               precomputedLabels: preComputedLabels);
 
           final expectedDestinations = expected['outputs'];
@@ -174,10 +177,9 @@ main() {
             final output = addToWallet.entries.elementAt(i);
             final pubkey = output.key;
             final expectedPubkey = expectedDestinations[i]["pub_key"];
-            expect(BytesUtils.toHexString(BytesUtils.fromHexString(pubkey).sublist(1)),
-                expectedPubkey);
+            expect(pubkey, expectedPubkey);
 
-            final privKeyTweak = output.value[0];
+            final privKeyTweak = output.value.tweak;
             final expectedPrivKeyTweak = expectedDestinations[i]["priv_key_tweak"];
             expect(privKeyTweak, expectedPrivKeyTweak);
 

@@ -8,6 +8,14 @@ class SilentPaymentOutput {
   SilentPaymentOutput(this.address, this.amount);
 }
 
+class SilentPaymentScanningOutput {
+  final SilentPaymentOutput output;
+  final String tweak;
+  final String? label;
+
+  SilentPaymentScanningOutput({required this.output, required this.tweak, this.label});
+}
+
 class ECPrivateInfo {
   final ECPrivate privkey;
   final bool isTaproot;
@@ -86,32 +94,29 @@ class SilentPaymentBuilder {
 
     for (final silentPaymentDestination in silentPaymentDestinations) {
       final B_scan = silentPaymentDestination.B_scan;
-      final B_scan_hex = B_scan.toHex();
+      final scanPubkey = B_scan.toHex();
 
-      if (silentPaymentGroups.containsKey(B_scan_hex)) {
+      if (silentPaymentGroups.containsKey(scanPubkey)) {
         // Current key already in silentPaymentGroups, simply add up the new destination
         // with the already calculated ecdhSharedSecret
-        final group = silentPaymentGroups[B_scan_hex]!;
+        final group = silentPaymentGroups[scanPubkey]!;
         final ecdhSharedSecret = group.keys.first;
         final recipients = group.values.first;
 
-        silentPaymentGroups[B_scan_hex] = {
+        silentPaymentGroups[scanPubkey] = {
           ecdhSharedSecret: [...recipients, silentPaymentDestination]
         };
       } else {
-        final senderPartialSecret =
-            a_sum!.clone().tweakMul(BigintUtils.fromBytes(inputHash)).toBytes();
+        final senderPartialSecret = a_sum!.tweakMul(BigintUtils.fromBytes(inputHash)).toBytes();
         final ecdhSharedSecret =
-            B_scan.clone().tweakMul(BigintUtils.fromBytes(senderPartialSecret)).toHex();
+            B_scan.tweakMul(BigintUtils.fromBytes(senderPartialSecret)).toHex();
 
-        silentPaymentGroups[B_scan_hex] = {
+        silentPaymentGroups[scanPubkey] = {
           ecdhSharedSecret: [silentPaymentDestination]
         };
       }
     }
 
-    // Result destinations with amounts
-    // { <silentPaymentAddress>: [(<tweakedPubKey1>, <amount>), (<tweakedPubKey2>, <amount>)...] }
     Map<String, List<SilentPaymentOutput>> result = {};
     for (final group in silentPaymentGroups.entries) {
       final ecdhSharedSecret = group.value.keys.first;
@@ -126,14 +131,14 @@ class SilentPaymentBuilder {
             ]),
             "BIP0352/SharedSecret");
 
-        final P_mn = ECPublic(destination.B_spend.publicKey).tweakAdd(BigintUtils.fromBytes(t_k));
+        final P_mn = destination.B_spend.tweakAdd(BigintUtils.fromBytes(t_k));
 
         if (result.containsKey(destination.toString())) {
           result[destination.toString()]!
-              .add(SilentPaymentOutput(P_mn.toTaprootAddress(), destination.amount));
+              .add(SilentPaymentOutput(P_mn.toTaprootAddress(tweak: false), destination.amount));
         } else {
           result[destination.toString()] = [
-            SilentPaymentOutput(P_mn.toTaprootAddress(), destination.amount)
+            SilentPaymentOutput(P_mn.toTaprootAddress(tweak: false), destination.amount)
           ];
         }
 
@@ -144,15 +149,18 @@ class SilentPaymentBuilder {
     return result;
   }
 
-  Map<String, List<String>> scanOutputs(
-      ECPrivate b_scan, ECPublic B_spend, List<String> outputsToCheck,
-      {Map<String, String>? precomputedLabels}) {
+  Map<String, SilentPaymentScanningOutput> scanOutputs(
+    ECPrivate b_scan,
+    ECPublic B_spend,
+    List<BitcoinScriptOutput> outputsToCheck, {
+    Map<String, String>? precomputedLabels,
+  }) {
     final tweakDataForRecipient = receiverTweak != null
         ? ECPublic.fromHex(receiverTweak!)
-        : A_sum.clone().tweakMul(BigintUtils.fromBytes(inputHash));
+        : A_sum.tweakMul(BigintUtils.fromBytes(inputHash));
     final ecdhSharedSecret = tweakDataForRecipient.tweakMul(b_scan.toBigInt());
 
-    final matches = <String, List<String>>{};
+    final matches = <String, SilentPaymentScanningOutput>{};
     var k = 0;
 
     do {
@@ -163,76 +171,47 @@ class SilentPaymentBuilder {
           ]),
           "BIP0352/SharedSecret");
 
-      final P_k = B_spend.clone().tweakAdd(BigintUtils.fromBytes(t_k));
+      final P_k = B_spend.tweakAdd(BigintUtils.fromBytes(t_k));
       final length = outputsToCheck.length;
 
       for (var i = 0; i < length; i++) {
-        final output = outputsToCheck[i];
+        final output = outputsToCheck[i].script.toBytes().sublist(2);
+        final outputPubkey = BytesUtils.toHexString(output);
+        final outputAmount = outputsToCheck[i].value.toInt();
 
-        if (output ==
-                BytesUtils.toHexString(
-                    P_k.toTaprootAddress().toScriptPubKey().toBytes().sublist(2)) ||
-            (BytesUtils.compareBytes(ECPublic.fromHex(output).toCompressedBytes().sublist(1),
-                    P_k.toCompressedBytes().sublist(1)) ==
-                0)) {
-          matches[P_k.toHex()] = [BytesUtils.toHexString(t_k)];
+        if ((BytesUtils.compareBytes(output, P_k.toCompressedBytes().sublist(1)) == 0)) {
+          matches[outputPubkey] = SilentPaymentScanningOutput(
+            output: SilentPaymentOutput(P_k.toTaprootAddress(tweak: false), outputAmount),
+            tweak: BytesUtils.toHexString(t_k),
+          );
           outputsToCheck.removeAt(i);
           k++;
           break;
         }
 
         if (precomputedLabels != null && precomputedLabels.isNotEmpty) {
-          var m_G_sub = ECPublic.fromHex(output).pubkeyAdd(P_k.clone().negate());
+          var m_G_sub = ECPublic.fromBytes(output).pubkeyAdd(P_k.negate());
           var m_G = precomputedLabels[m_G_sub.toHex()];
 
           if (m_G == null) {
-            m_G_sub = ECPublic.fromHex(output).negate().pubkeyAdd(P_k.clone().negate());
+            m_G_sub = ECPublic.fromBytes(output).negate().pubkeyAdd(P_k.negate());
             m_G = precomputedLabels[m_G_sub.toHex()];
           }
 
           if (m_G != null) {
-            final P_km = P_k.clone().tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)));
+            final P_km = P_k.tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)));
 
-            matches[P_km.toHex()] = [
-              ECPrivate.fromBytes(t_k)
+            matches[outputPubkey] = SilentPaymentScanningOutput(
+              output: SilentPaymentOutput(P_km.toTaprootAddress(tweak: false), outputAmount),
+              tweak: ECPrivate.fromBytes(t_k)
                   .tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)))
                   .toHex(),
-              m_G
-            ];
+              label: m_G,
+            );
 
             outputsToCheck.removeAt(i);
             k++;
             break;
-          }
-
-          if (m_G == null) {
-            final labels = precomputedLabels.keys;
-            bool found = false;
-            for (final label in labels) {
-              final tweak = precomputedLabels[label];
-              final P_km =
-                  P_k.clone().tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(tweak!)));
-
-              if (BytesUtils.toHexString(
-                      P_km.toTaprootAddress().toScriptPubKey().toBytes().sublist(2)) ==
-                  output) {
-                matches[P_km.toHex()] = [
-                  ECPrivate.fromBytes(t_k)
-                      .tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(tweak)))
-                      .toHex(),
-                  label
-                ];
-
-                outputsToCheck.removeAt(i);
-                k++;
-                found = true;
-                break;
-              }
-            }
-
-            if (found) {
-              break;
-            }
           }
         }
 
@@ -246,4 +225,9 @@ class SilentPaymentBuilder {
 
     return matches;
   }
+}
+
+BitcoinScriptOutput getScriptFromOutput(String pubkey, int amount) {
+  return BitcoinScriptOutput(
+      script: Script(script: [BitcoinOpCodeConst.OP_1, pubkey]), value: BigInt.from(amount));
 }
