@@ -183,11 +183,11 @@ main() {
             final expectedPrivKeyTweak = expectedDestinations[i]["priv_key_tweak"];
             expect(privKeyTweak, expectedPrivKeyTweak);
 
-            final fullPrivateKey =
-                silentPaymentOwner.b_spend.clone().tweakAdd(BigintUtils.parse(privKeyTweak));
+            var fullPrivateKey =
+                silentPaymentOwner.b_spend.tweakAdd(BigintUtils.parse(privKeyTweak));
 
             if (fullPrivateKey.toBytes()[0] == 0x03) {
-              fullPrivateKey.negate();
+              fullPrivateKey = fullPrivateKey.negate();
             }
 
             // Sign the message with schnorr

@@ -214,7 +214,9 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
         }
         return senderPub.toP2pkhAddress().toScriptPubKey();
       case SegwitAddresType.p2tr:
-        return senderPub.toTaprootAddress().toScriptPubKey();
+        return senderPub
+            .toTaprootAddress(tweak: utxo.utxo.isSilentPayment != true)
+            .toScriptPubKey();
       case P2shAddressType.p2pkhInP2sh:
         if (isTaproot) {
           return senderPub.toP2pkhInP2sh().toScriptPubKey();
