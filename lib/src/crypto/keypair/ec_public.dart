@@ -108,7 +108,7 @@ class ECPublic {
   /// custom spending conditions.
   P2trAddress toTaprootAddress({List<List<Script>>? scripts, bool tweak = true}) {
     final pubKey = toTapRotHex(script: scripts, tweak: tweak);
-    return P2trAddress.fromProgram(program: pubKey, pubkey: this);
+    return P2trAddress.fromProgram(program: pubKey, pubkey: ECPublic.fromHex(pubKey));
   }
 
   /// toP2wpkhInP2sh generates a P2SH (Pay-to-Script-Hash) address

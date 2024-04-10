@@ -72,7 +72,8 @@ main() {
                   .toList();
 
           final spb = SilentPaymentBuilder(pubkeys: inputPubKeys, outpoints: vinOutpoints);
-          sendingOutputs = spb.createOutputs(inputPrivKeyInfos, silentPaymentDestinations);
+          sendingOutputs =
+              spb.createOutputs(inputPrivKeyInfos, silentPaymentDestinations, tweak: false);
 
           List<dynamic> expectedDestinations = sendingTest['expected']['outputs'];
 

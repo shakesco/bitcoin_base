@@ -52,11 +52,9 @@ class SilentPaymentBuilder {
     final sortedOutpoints = <List<int>>[];
 
     for (final outpoint in outpoints!) {
-      final vout = outpoint.index;
-
       sortedOutpoints.add(BytesUtils.concatBytes([
         BytesUtils.fromHexString(outpoint.txid).reversed.toList(),
-        BigintUtils.toBytes(BigInt.from(vout), length: 4, order: Endian.little)
+        BigintUtils.toBytes(BigInt.from(outpoint.index), length: 4, order: Endian.little)
       ]));
     }
 
@@ -69,18 +67,26 @@ class SilentPaymentBuilder {
 
   Map<String, List<SilentPaymentOutput>> createOutputs(
     List<ECPrivateInfo> inputPrivKeyInfos,
-    List<SilentPaymentDestination> silentPaymentDestinations,
-  ) {
+    List<SilentPaymentDestination> silentPaymentDestinations, {
+    bool tweak = true,
+  }) {
     ECPrivate? a_sum;
 
     for (final info in inputPrivKeyInfos) {
-      final key = info.privkey;
+      var k = info.privkey;
       final isTaproot = info.isTaproot;
 
-      var k = ECPrivate(key.prive);
+      if (isTaproot) {
+        if (tweak) {
+          k = k.toTweakedTaprootKey();
+        }
 
-      if (isTaproot && key.getPublic().publicKey.point.y % BigInt.two != BigInt.zero) {
-        k = k.negate();
+        final xOnlyPubkey = k.getPublic();
+        final isOdd = xOnlyPubkey.publicKey.point.y % BigInt.two != BigInt.zero;
+
+        if (isOdd) {
+          k = k.negate();
+        }
       }
 
       if (a_sum == null) {
@@ -89,6 +95,9 @@ class SilentPaymentBuilder {
         a_sum = a_sum.tweakAdd(BigintUtils.fromBytes(k.toBytes()));
       }
     }
+
+    A_sum = a_sum!.getPublic();
+    _getInputHash();
 
     Map<String, Map<String, List<SilentPaymentDestination>>> silentPaymentGroups = {};
 
@@ -107,7 +116,7 @@ class SilentPaymentBuilder {
           ecdhSharedSecret: [...recipients, silentPaymentDestination]
         };
       } else {
-        final senderPartialSecret = a_sum!.tweakMul(BigintUtils.fromBytes(inputHash)).toBytes();
+        final senderPartialSecret = a_sum.tweakMul(BigintUtils.fromBytes(inputHash)).toBytes();
         final ecdhSharedSecret =
             B_scan.tweakMul(BigintUtils.fromBytes(senderPartialSecret)).toHex();
 
@@ -132,14 +141,13 @@ class SilentPaymentBuilder {
             "BIP0352/SharedSecret");
 
         final P_mn = destination.B_spend.tweakAdd(BigintUtils.fromBytes(t_k));
+        final resOutput =
+            SilentPaymentOutput(P_mn.toTaprootAddress(tweak: false), destination.amount);
 
         if (result.containsKey(destination.toString())) {
-          result[destination.toString()]!
-              .add(SilentPaymentOutput(P_mn.toTaprootAddress(tweak: false), destination.amount));
+          result[destination.toString()]!.add(resOutput);
         } else {
-          result[destination.toString()] = [
-            SilentPaymentOutput(P_mn.toTaprootAddress(tweak: false), destination.amount)
-          ];
+          result[destination.toString()] = [resOutput];
         }
 
         k++;

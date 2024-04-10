@@ -87,6 +87,13 @@ class ECPrivate {
     return BytesUtils.toHexString(signatur);
   }
 
+  ECPrivate toTweakedTaprootKey() {
+    final t = P2TRUtils.calculateTweek(getPublic().publicKey.point as ProjectiveECCPoint);
+
+    return ECPrivate.fromBytes(
+        BitcoinSignerUtils.calculatePrivateTweek(toBytes(), BigintUtils.fromBytes(t)));
+  }
+
   static ECPrivate random() {
     final secret = QuickCrypto.generateRandom();
     return ECPrivate.fromBytes(secret);
