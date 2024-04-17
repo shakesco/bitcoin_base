@@ -59,8 +59,11 @@ main() {
             continue;
           }
 
-          inputPrivKeyInfos
-              .add(ECPrivateInfo(privkey, prevoutScript.getAddressType() == SegwitAddresType.p2tr));
+          inputPrivKeyInfos.add(ECPrivateInfo(
+            privkey,
+            prevoutScript.getAddressType() == SegwitAddresType.p2tr,
+            tweak: false,
+          ));
           inputPubKeys.add(pubkey);
         }
 
@@ -72,8 +75,7 @@ main() {
                   .toList();
 
           final spb = SilentPaymentBuilder(pubkeys: inputPubKeys, outpoints: vinOutpoints);
-          sendingOutputs =
-              spb.createOutputs(inputPrivKeyInfos, silentPaymentDestinations, tweak: false);
+          sendingOutputs = spb.createOutputs(inputPrivKeyInfos, silentPaymentDestinations);
 
           List<dynamic> expectedDestinations = sendingTest['expected']['outputs'];
 

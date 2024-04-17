@@ -19,8 +19,9 @@ class SilentPaymentScanningOutput {
 class ECPrivateInfo {
   final ECPrivate privkey;
   final bool isTaproot;
+  final bool tweak;
 
-  ECPrivateInfo(this.privkey, this.isTaproot);
+  ECPrivateInfo(this.privkey, this.isTaproot, {this.tweak = false});
 }
 
 class SilentPaymentBuilder {
@@ -67,9 +68,8 @@ class SilentPaymentBuilder {
 
   Map<String, List<SilentPaymentOutput>> createOutputs(
     List<ECPrivateInfo> inputPrivKeyInfos,
-    List<SilentPaymentDestination> silentPaymentDestinations, {
-    bool tweak = true,
-  }) {
+    List<SilentPaymentDestination> silentPaymentDestinations,
+  ) {
     ECPrivate? a_sum;
 
     for (final info in inputPrivKeyInfos) {
@@ -77,7 +77,7 @@ class SilentPaymentBuilder {
       final isTaproot = info.isTaproot;
 
       if (isTaproot) {
-        if (tweak) {
+        if (info.tweak) {
           k = k.toTweakedTaprootKey();
         }
 
