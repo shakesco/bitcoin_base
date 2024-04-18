@@ -116,6 +116,9 @@ class BtcTransaction {
     List<TxWitnessInput> witnesses = [];
     if (hasSegwit) {
       for (int n = 0; n < inputs.length; n++) {
+        final input = inputs[n];
+        if (input.scriptSig.script.isNotEmpty) continue;
+
         final wVi = IntUtils.decodeVarint(rawtx.sublist(cursor, cursor + 9));
         cursor += wVi.item2;
         List<String> witnessesTmp = [];
