@@ -74,7 +74,7 @@ main() {
                       SilentPaymentDestination.fromAddress(recipient[0], recipient[1].floor()))
                   .toList();
 
-          final spb = SilentPaymentBuilder(pubkeys: inputPubKeys, outpoints: vinOutpoints);
+          final spb = SilentPaymentBuilder(pubkeys: inputPubKeys, vinOutpoints: vinOutpoints);
           sendingOutputs = spb.createOutputs(inputPrivKeyInfos, silentPaymentDestinations);
 
           List<dynamic> expectedDestinations = sendingTest['expected']['outputs'];
@@ -167,7 +167,7 @@ main() {
         }
 
         if (inputPubKeys.isNotEmpty) {
-          final spb = SilentPaymentBuilder(pubkeys: inputPubKeys, outpoints: vinOutpoints);
+          final spb = SilentPaymentBuilder(pubkeys: inputPubKeys, vinOutpoints: vinOutpoints);
 
           final addToWallet = spb.scanOutputs(silentPaymentOwner.b_scan, silentPaymentOwner.B_spend,
               outputsToCheck.map((o) => getScriptFromOutput(o, 0)).toList(),

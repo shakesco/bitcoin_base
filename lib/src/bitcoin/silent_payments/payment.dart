@@ -25,18 +25,18 @@ class ECPrivateInfo {
 }
 
 class SilentPaymentBuilder {
-  final List<Outpoint>? outpoints;
+  final List<Outpoint> vinOutpoints;
   final List<ECPublic>? pubkeys;
-  late ECPublic A_sum;
-  late List<int> inputHash;
+  ECPublic? A_sum;
+  List<int>? inputHash;
   String? receiverTweak;
 
   SilentPaymentBuilder({
-    this.outpoints,
+    required this.vinOutpoints,
     this.pubkeys,
     this.receiverTweak,
   }) {
-    if (receiverTweak == null) {
+    if (receiverTweak == null && pubkeys != null) {
       _getAsum();
       _getInputHash();
     }
@@ -52,7 +52,7 @@ class SilentPaymentBuilder {
   void _getInputHash() {
     final sortedOutpoints = <List<int>>[];
 
-    for (final outpoint in outpoints!) {
+    for (final outpoint in vinOutpoints) {
       sortedOutpoints.add(BytesUtils.concatBytes([
         BytesUtils.fromHexString(outpoint.txid).reversed.toList(),
         BigintUtils.toBytes(BigInt.from(outpoint.index), length: 4, order: Endian.little)
@@ -63,7 +63,7 @@ class SilentPaymentBuilder {
     final lowestOutpoint = sortedOutpoints.first;
 
     inputHash = taggedHash(
-        BytesUtils.concatBytes([lowestOutpoint, A_sum.toCompressedBytes()]), "BIP0352/Inputs");
+        BytesUtils.concatBytes([lowestOutpoint, A_sum!.toCompressedBytes()]), "BIP0352/Inputs");
   }
 
   Map<String, List<SilentPaymentOutput>> createOutputs(
@@ -116,7 +116,7 @@ class SilentPaymentBuilder {
           ecdhSharedSecret: [...recipients, silentPaymentDestination]
         };
       } else {
-        final senderPartialSecret = a_sum.tweakMul(BigintUtils.fromBytes(inputHash)).toBytes();
+        final senderPartialSecret = a_sum.tweakMul(BigintUtils.fromBytes(inputHash!)).toBytes();
         final ecdhSharedSecret =
             B_scan.tweakMul(BigintUtils.fromBytes(senderPartialSecret)).toHex();
 
@@ -165,7 +165,7 @@ class SilentPaymentBuilder {
   }) {
     final tweakDataForRecipient = receiverTweak != null
         ? ECPublic.fromHex(receiverTweak!)
-        : A_sum.tweakMul(BigintUtils.fromBytes(inputHash));
+        : A_sum!.tweakMul(BigintUtils.fromBytes(inputHash!));
     final ecdhSharedSecret = tweakDataForRecipient.tweakMul(b_scan.toBigInt());
 
     final matches = <String, SilentPaymentScanningOutput>{};
