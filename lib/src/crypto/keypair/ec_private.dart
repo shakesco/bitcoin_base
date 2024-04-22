@@ -1,5 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:bitcoin_base/bitcoin_base.dart';
+import 'package:bitcoin_base/src/crypto/keypair/sign_utils.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
+import 'package:pointycastle/export.dart';
+import 'package:bip32/bip32.dart' as bip32;
+import 'package:bip32/src/utils/ecurve.dart' as ecc;
 
 /// Represents an ECDSA private key.
 class ECPrivate {
@@ -8,28 +14,23 @@ class ECPrivate {
 
   /// creates an object from raw 32 bytes
   factory ECPrivate.fromBytes(List<int> prive) {
-    final key = Bip32PrivateKey.fromBytes(prive, Bip32KeyData(),
-        Bip32Const.mainNetKeyNetVersions, EllipticCurveTypes.secp256k1);
+    final key = Bip32PrivateKey.fromBytes(
+        prive, Bip32KeyData(), Bip32Const.mainNetKeyNetVersions, EllipticCurveTypes.secp256k1);
     return ECPrivate(key);
   }
 
   /// returns the corresponding ECPublic object
-  ECPublic getPublic() =>
-      ECPublic.fromHex(BytesUtils.toHexString(prive.publicKey.compressed));
+  ECPublic getPublic() => ECPublic.fromHex(BytesUtils.toHexString(prive.publicKey.compressed));
 
   /// creates an object from a WIF of WIFC format (string)
   factory ECPrivate.fromWif(String wif, {required List<int>? netVersion}) {
-    final decode = WifDecoder.decode(wif,
-        netVer: netVersion ?? BitcoinNetwork.mainnet.wifNetVer);
+    final decode = WifDecoder.decode(wif, netVer: netVersion ?? BitcoinNetwork.mainnet.wifNetVer);
     return ECPrivate.fromBytes(decode.item1);
   }
 
   /// returns as WIFC (compressed) or WIF format (string)
   String toWif({bool compressed = true, BitcoinNetwork? network}) {
-    List<int> bytes = <int>[
-      ...(network ?? BitcoinNetwork.mainnet).wifNetVer,
-      ...toBytes()
-    ];
+    List<int> bytes = <int>[...(network ?? BitcoinNetwork.mainnet).wifNetVer, ...toBytes()];
     if (compressed) {
       bytes = <int>[...bytes, 0x01];
     }
@@ -46,16 +47,35 @@ class ECPrivate {
   }
 
   /// Returns a Bitcoin compact signature in hex
-  String signMessage(List<int> message,
-      {String messagePrefix = '\x18Bitcoin Signed Message:\n'}) {
-    final btcSigner = BitcoinSigner.fromKeyBytes(toBytes());
-    final signature = btcSigner.signMessage(message, messagePrefix);
-    return BytesUtils.toHexString(signature);
+  String signMessage(List<int> message, {String messagePrefix = '\x18Bitcoin Signed Message:\n'}) {
+
+    final messageHash =
+        QuickCrypto.sha256Hash(BitcoinSignerUtils.magicMessage(message, messagePrefix));
+
+    final messageHashBytes = Uint8List.fromList(messageHash);
+    final privBytes = Uint8List.fromList(prive.raw);
+    final rs = ecc.sign(messageHashBytes, privBytes);
+    final rawSig = rs.toECSignature();
+
+    final pub = prive.publicKey;
+    final ECDomainParameters curve = ECCurve_secp256k1();
+    final point = curve.curve.decodePoint(pub.point.toBytes());
+
+    final recId = SignUtils.findRecoveryId(
+      SignUtils.getHexString(messageHash, offset: 0, length: messageHash.length),
+      rawSig,
+      Uint8List.fromList(pub.uncompressed),
+    );
+
+    final v = recId + 27 + (point!.isCompressed ? 4 : 0);
+
+    final combined = Uint8List.fromList([v, ...rs]);
+
+    return BytesUtils.toHexString(combined);
   }
 
   /// sign transaction digest  and returns the signature.
-  String signInput(List<int> txDigest,
-      {int sigHash = BitcoinOpCodeConst.SIGHASH_ALL}) {
+  String signInput(List<int> txDigest, {int sigHash = BitcoinOpCodeConst.SIGHASH_ALL}) {
     final btcSigner = BitcoinSigner.fromKeyBytes(toBytes());
     List<int> signature = btcSigner.signTransaction(txDigest);
     signature = <int>[...signature, sigHash];
@@ -74,12 +94,11 @@ class ECPrivate {
       return true;
     }(),
         "When the tweak is false, the `tapScripts` are ignored, to use the tap script path, you need to consider the tweak value to be true.");
-    final tapScriptBytes = !tweak
-        ? []
-        : tapScripts.map((e) => e.map((e) => e.toBytes()).toList()).toList();
+    final tapScriptBytes =
+        !tweak ? [] : tapScripts.map((e) => e.map((e) => e.toBytes()).toList()).toList();
     final btcSigner = BitcoinSigner.fromKeyBytes(toBytes());
-    List<int> signatur = btcSigner.signSchnorrTransaction(txDigest,
-        tapScripts: tapScriptBytes, tweak: tweak);
+    List<int> signatur =
+        btcSigner.signSchnorrTransaction(txDigest, tapScripts: tapScriptBytes, tweak: tweak);
     if (sighash != BitcoinOpCodeConst.TAPROOT_SIGHASH_ALL) {
       signatur = <int>[...signatur, sighash];
     }

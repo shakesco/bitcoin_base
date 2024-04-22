@@ -16,6 +16,8 @@ environment:
 
 
 dependencies:
+  pointycastle: ^3.7.4
+  bip32: ^2.0.0
   blockchain_utils: ^1.4.1
 
 dev_dependencies:
