@@ -1,4 +1,28 @@
-# 3.0.1
+## 4.2.0
+
+* Update dependencies
+
+## 4.1.0
+
+* Update dependencies
+
+## 4.0.0
+
+* Added support for BitcoinSV network
+* Introduced classes for improved network address handling
+* Implemented functionalities to create, sign, spend, mint, and burn Bitcoin Cash Tokens (FT, NFT tokens)
+* Implemented a class for creating the Bitcoin Cash Metadata Registry (BCMR).
+* Utilized BIP69 ordering for enhanced transaction sorting
+
+## 3.0.3
+
+* Update dependencies
+
+## 3.0.2
+
+* Update dependencies
+
+## 3.0.1
 
 * Update dependencies
 

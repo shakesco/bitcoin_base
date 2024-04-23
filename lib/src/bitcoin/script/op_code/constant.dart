@@ -1,7 +1,126 @@
-/// ignore_for_file: constant_identifier_names, equal_keys_in_map, non_constant_identifier_names
+/// ignore_for_file: constant_identifier_names, equal_keys_in_map, non_constant_identifier_names, camel_case_types
 /// Constants and identifiers used in the Bitcoin-related code.
-// ignore_for_file: constant_identifier_names, non_constant_identifier_names, equal_keys_in_map
+// ignore_for_file: constant_identifier_names, non_constant_identifier_names, equal_keys_in_map, camel_case_types
+
 class BitcoinOpCodeConst {
+  static const OP_0 = "OP_0";
+  static const OP_FALSE = "OP_FALSE";
+  static const OP_PUSHDATA1 = "OP_PUSHDATA1";
+  static const OP_PUSHDATA2 = "OP_PUSHDATA2";
+  static const OP_PUSHDATA4 = "OP_PUSHDATA4";
+  static const OP_1NEGATE = "OP_1NEGATE";
+  static const OP_1 = "OP_1";
+  static const OP_TRUE = "OP_TRUE";
+  static const OP_2 = "OP_2";
+  static const OP_3 = "OP_3";
+  static const OP_4 = "OP_4";
+  static const OP_5 = "OP_5";
+  static const OP_6 = "OP_6";
+  static const OP_7 = "OP_7";
+  static const OP_8 = "OP_8";
+  static const OP_9 = "OP_9";
+  static const OP_10 = "OP_10";
+  static const OP_11 = "OP_11";
+  static const OP_12 = "OP_12";
+  static const OP_13 = "OP_13";
+  static const OP_14 = "OP_14";
+  static const OP_15 = "OP_15";
+  static const OP_16 = "OP_16";
+
+  /// flow control
+  static const OP_NOP = "OP_NOP";
+  static const OP_IF = "OP_IF";
+  static const OP_NOTIF = "OP_NOTIF";
+  static const OP_ELSE = "OP_ELSE";
+  static const OP_ENDIF = "OP_ENDIF";
+  static const OP_VERIFY = "OP_VERIFY";
+  static const OP_RETURN = "OP_RETURN";
+
+  /// stack
+  static const OP_TOALTSTACK = "OP_TOALTSTACK";
+  static const OP_FROMALTSTACK = "OP_FROMALTSTACK";
+  static const OP_IFDUP = "OP_IFDUP";
+  static const OP_DEPTH = "OP_DEPTH";
+  static const OP_DROP = "OP_DROP";
+  static const OP_DUP = "OP_DUP";
+  static const OP_NIP = "OP_NIP";
+  static const OP_OVER = "OP_OVER";
+  static const OP_PICK = "OP_PICK";
+  static const OP_ROLL = "OP_ROLL";
+  static const OP_ROT = "OP_ROT";
+  static const OP_SWAP = "OP_SWAP";
+  static const OP_TUCK = "OP_TUCK";
+  static const OP_2DROP = "OP_2DROP";
+  static const OP_2DUP = "OP_2DUP";
+  static const OP_3DUP = "OP_3DUP";
+  static const OP_2OVER = "OP_2OVER";
+  static const OP_2ROT = "OP_2ROT";
+  static const OP_2SWAP = "OP_2SWAP";
+
+  /// splice
+  /// 'OP_CAT': [0x7e],
+  /// 'OP_SUBSTR': [0x7f],
+  /// 'OP_LEFT': [0x80],
+  /// 'OP_RIGHT': [0x81],
+  static const OP_SIZE = "OP_SIZE";
+
+  /// bitwise logic
+  /// 'OP_INVERT': [0x83],
+  /// 'OP_AND': [0x84],
+  /// 'OP_OR': [0x85],
+  /// 'OP_XOR': [0x86],
+  static const OP_EQUAL = "OP_EQUAL";
+  static const OP_EQUALVERIFY = "OP_EQUALVERIFY";
+
+  /// arithmetic
+  static const OP_1ADD = "OP_1ADD";
+  static const OP_1SUB = "OP_1SUB";
+
+  /// 'OP_2MUL': [0x8d],
+  /// 'OP_2DIV': [0x8e],
+  static const OP_NEGATE = "OP_NEGATE";
+  static const OP_ABS = "OP_ABS";
+  static const OP_NOT = "OP_NOT";
+  static const OP_0NOTEQUAL = "OP_0NOTEQUAL";
+  static const OP_ADD = "OP_ADD";
+  static const OP_SUB = "OP_SUB";
+
+  /// 'OP_MUL': [0x95],
+  /// 'OP_DIV': [0x96],
+  /// 'OP_MOD': [0x97],
+  /// 'OP_LSHIFT': [0x98],
+  /// 'OP_RSHIFT': [0x99],
+  static const OP_BOOLAND = "OP_BOOLAND";
+  static const OP_BOOLOR = "OP_BOOLOR";
+  static const OP_NUMEQUAL = "OP_NUMEQUAL";
+  static const OP_NUMEQUALVERIFY = "OP_NUMEQUALVERIFY";
+  static const OP_NUMNOTEQUAL = "OP_NUMNOTEQUAL";
+  static const OP_LESSTHAN = "OP_LESSTHAN";
+  static const OP_GREATERTHAN = "OP_GREATERTHAN";
+  static const OP_LESSTHANOREQUAL = "OP_LESSTHANOREQUAL";
+  static const OP_GREATERTHANOREQUAL = "OP_GREATERTHANOREQUAL";
+  static const OP_MIN = "OP_MIN";
+  static const OP_MAX = "OP_MAX";
+  static const OP_WITHIN = "OP_WITHIN";
+
+  /// crypto
+  static const OP_RIPEMD160 = "OP_RIPEMD160";
+  static const OP_SHA1 = "OP_SHA1";
+  static const OP_SHA256 = "OP_SHA256";
+  static const OP_HASH160 = "OP_HASH160";
+  static const OP_HASH256 = "OP_HASH256";
+  static const OP_CODESEPARATOR = "OP_CODESEPARATOR";
+  static const OP_CHECKSIG = "OP_CHECKSIG";
+  static const OP_CHECKSIGVERIFY = "OP_CHECKSIGVERIFY";
+  static const OP_CHECKMULTISIG = "OP_CHECKMULTISIG";
+  static const OP_CHECKMULTISIGVERIFY = "OP_CHECKMULTISIGVERIFY";
+
+  /// locktime
+  static const OP_NOP2 = "OP_NOP2";
+  static const OP_CHECKLOCKTIMEVERIFY = "OP_CHECKLOCKTIMEVERIFY";
+  static const OP_NOP3 = "OP_NOP3";
+  static const OP_CHECKSEQUENCEVERIFY = "OP_CHECKSEQUENCEVERIFY";
+
   static const Map<String, List<int>> OP_CODES = {
     'OP_0': [0x00],
     'OP_FALSE': [0x00],
@@ -229,6 +348,7 @@ class BitcoinOpCodeConst {
   static const int SIGHASH_ANYONECANPAY = 0x80;
   static const int SIGHASH_ALL = 0x01;
   static const int SIGHASH_FORKED = 0x40;
+  static const int SIGHASH_Test = 0x00000041;
   static const int SIGHASH_NONE = 0x02;
   static const int TAPROOT_SIGHASH_ALL = 0x00;
 

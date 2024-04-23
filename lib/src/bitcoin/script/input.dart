@@ -16,10 +16,19 @@ class TxInput {
       {required this.txId,
       required this.txIndex,
       Script? scriptSig,
-      List<int>? sequance})
+      List<int>? sequence})
       : sequence = List.unmodifiable(
-            sequance ?? BitcoinOpCodeConst.DEFAULT_TX_SEQUENCE),
+            sequence ?? BitcoinOpCodeConst.DEFAULT_TX_SEQUENCE),
         scriptSig = scriptSig ?? Script(script: []);
+  TxInput copyWith(
+      {String? txId, int? txIndex, Script? scriptSig, List<int>? sequence}) {
+    return TxInput(
+        txId: txId ?? this.txId,
+        txIndex: txIndex ?? this.txIndex,
+        scriptSig: scriptSig ?? this.scriptSig,
+        sequence: sequence ?? this.sequence);
+  }
+
   final String txId;
   final int txIndex;
   Script scriptSig;
@@ -28,7 +37,7 @@ class TxInput {
   /// creates a copy of the object
   TxInput copy() {
     return TxInput(
-        txId: txId, txIndex: txIndex, scriptSig: scriptSig, sequance: sequence);
+        txId: txId, txIndex: txIndex, scriptSig: scriptSig, sequence: sequence);
   }
 
   /// serializes TxInput to bytes
@@ -75,7 +84,12 @@ class TxInput {
             scriptSig: Script.fromRaw(
                 hexData: BytesUtils.toHexString(unlockingScript),
                 hasSegwit: hasSegwit),
-            sequance: sequenceNumberData),
+            sequence: sequenceNumberData),
         cursor);
+  }
+
+  @override
+  String toString() {
+    return "TxInput{txId: $txId, txIndex: $txIndex, scriptSig: $scriptSig, sequence: ${BytesUtils.toHexString(sequence)}}";
   }
 }
