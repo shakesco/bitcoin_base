@@ -215,6 +215,8 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
         return senderPub.toP2pkhAddress().toScriptPubKey();
       case SegwitAddresType.p2tr:
         return senderPub.toTaprootAddress().toScriptPubKey();
+      case SegwitAddresType.mweb:
+        return Script(script: []);
       case P2shAddressType.p2pkhInP2sh:
         if (isTaproot) {
           return senderPub.toP2pkhInP2sh().toScriptPubKey();
@@ -351,6 +353,8 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
         case SegwitAddresType.p2wpkh:
         case P2shAddressType.p2wpkhInP2sh:
           return [signedDigest, senderPub.toHex()];
+        case SegwitAddresType.mweb:
+          return [];
         default:
           throw Exception(
               "invalid segwit address type ${utx.utxo.scriptType.value}");
