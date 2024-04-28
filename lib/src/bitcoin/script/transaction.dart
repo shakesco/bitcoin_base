@@ -27,6 +27,7 @@ class BtcTransaction {
       required List<TxOutput> outputs,
       List<TxWitnessInput> witnesses = const [],
       this.hasSegwit = false,
+      this.mwebBytes,
       List<int>? lock,
       List<int>? version})
       : locktime = List<int>.unmodifiable(
@@ -42,6 +43,7 @@ class BtcTransaction {
   final List<int> version;
   final bool hasSegwit;
   final List<TxWitnessInput> witnesses;
+  final List<int>? mwebBytes;
 
   // List<TxWitnessInput> get witnesses =>
   //     List.unmodifiable(_witnesses.map((e) => e.copy()).toList());
@@ -58,6 +60,7 @@ class BtcTransaction {
       outputs: outputs ?? this.outputs,
       witnesses: witnesses ?? this.witnesses,
       hasSegwit: hasSegwit ?? this.hasSegwit,
+      mwebBytes: mwebBytes,
       lock: lock ?? List<int>.from(locktime),
       version: version ?? List<int>.from(this.version),
     );
@@ -74,6 +77,7 @@ class BtcTransaction {
         inputs: tx.inputs.map((e) => e.copy()).toList(),
         outputs: tx.outputs.map((e) => e.copy()).toList(),
         witnesses: tx.witnesses.map((e) => e.copy()).toList(),
+        mwebBytes: tx.mwebBytes,
         lock: tx.locktime,
         version: tx.version);
   }
@@ -85,10 +89,14 @@ class BtcTransaction {
     int cursor = 4;
     List<int>? flag;
     bool hasSegwit = false;
+    bool hasMweb = false;
     if (rawtx[4] == 0) {
       flag = List<int>.from(rawtx.sublist(5, 6));
-      if (flag[0] == 1) {
+      if (flag[0] & 1 > 0) {
         hasSegwit = true;
+      }
+      if (flag[0] & 8 > 0) {
+        hasMweb = true;
       }
       cursor += 2;
     }
@@ -136,12 +144,18 @@ class BtcTransaction {
         witnesses.add(TxWitnessInput(stack: witnessesTmp));
       }
     }
+    List<int>? mwebBytes;
+    if (hasMweb) {
+      mwebBytes = rawtx.sublist(cursor, rawtx.length - 4);
+      cursor = rawtx.length - 4;
+    }
     List<int> lock = rawtx.sublist(cursor, cursor + 4);
     return BtcTransaction(
         inputs: inputs,
         outputs: outputs,
         witnesses: witnesses,
         hasSegwit: hasSegwit,
+        mwebBytes: mwebBytes,
         version: version,
         lock: lock);
   }
@@ -214,8 +228,11 @@ class BtcTransaction {
   List<int> toBytes({bool segwit = false}) {
     DynamicByteTracker data = DynamicByteTracker();
     data.add(version);
-    if (segwit) {
-      data.add([0x00, 0x01]);
+    var flag = 0;
+    if (segwit) flag |= 1;
+    if (mwebBytes != null) flag |= 8;
+    if (flag > 0) {
+      data.add([0x00, flag]);
     }
     final txInCountBytes = IntUtils.encodeVarint(inputs.length);
     final txOutCountBytes = IntUtils.encodeVarint(outputs.length);
@@ -234,6 +251,9 @@ class BtcTransaction {
         data.add(witnessesCountBytes);
         data.add(wit.toBytes());
       }
+    }
+    if (mwebBytes != null) {
+      data.add(mwebBytes!);
     }
     data.add(locktime);
     return data.toBytes();
