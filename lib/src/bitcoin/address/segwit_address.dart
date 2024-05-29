@@ -11,8 +11,12 @@ abstract class SegwitAddress implements BitcoinBaseAddress {
         address: address, version: segwitVersion, network: network);
   }
   SegwitAddress.fromProgram(
-      {required String program, required this.segwitVersion, required SegwitAddresType addressType})
-      : addressProgram = _BitcoinAddressUtils.validateAddressProgram(program, addressType);
+      {required String program,
+      required this.segwitVersion,
+      required SegwitAddresType addressType,
+      ECPublic? ecpublic})
+      : addressProgram = _BitcoinAddressUtils.validateAddressProgram(program, addressType),
+        pubkey = ecpublic;
   SegwitAddress.fromRedeemScript({required Script script, required this.segwitVersion})
       : addressProgram = _BitcoinAddressUtils.segwitScriptToSHA256(script);
 
@@ -20,6 +24,7 @@ abstract class SegwitAddress implements BitcoinBaseAddress {
   late final String addressProgram;
 
   final int segwitVersion;
+  ECPublic? pubkey;
 
   @override
   String toAddress(BasedUtxoNetwork network) {
@@ -76,11 +81,12 @@ class P2trAddress extends SegwitAddress {
   P2trAddress.fromAddress({required String address, required BasedUtxoNetwork network})
       : super.fromAddress(
             segwitVersion: _BitcoinAddressUtils.segwitV1, address: address, network: network);
-  P2trAddress.fromProgram({required String program})
+  P2trAddress.fromProgram({required String program, ECPublic? pubkey})
       : super.fromProgram(
             segwitVersion: _BitcoinAddressUtils.segwitV1,
             program: program,
-            addressType: SegwitAddresType.p2tr);
+            addressType: SegwitAddresType.p2tr,
+            ecpublic: pubkey);
   P2trAddress.fromRedeemScript({required Script script})
       : super.fromRedeemScript(segwitVersion: _BitcoinAddressUtils.segwitV1, script: script);
 

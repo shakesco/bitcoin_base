@@ -200,12 +200,15 @@ class BitcoinUtxo {
     required this.scriptType,
     this.blockHeight,
     this.token,
+    this.isSilentPayment,
   });
 
   /// check if utxos is p2tr
   bool isP2tr() {
     return scriptType == SegwitAddresType.p2tr;
   }
+
+  bool? isSilentPayment;
 
   /// check if utxos is segwit
   bool isSegwit() {
