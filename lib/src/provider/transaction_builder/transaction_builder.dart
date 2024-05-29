@@ -30,6 +30,9 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
   final bool isFakeTransaction;
   final BitcoinOrdering inputOrdering;
   final BitcoinOrdering outputOrdering;
+  final List<ECPrivateInfo>? inputPrivKeyInfos;
+  final List<Outpoint>? vinOutpoints;
+
   BitcoinTransactionBuilder({
     required this.outputs,
     required this.fee,
@@ -40,6 +43,8 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
     this.memo,
     this.enableRBF = false,
     this.isFakeTransaction = false,
+    this.inputPrivKeyInfos,
+    this.vinOutpoints,
   }) : utxosInfo = utxos {
     _validateBuilder();
   }
@@ -54,8 +59,7 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
     final tokenInput = outputs.whereType<BitcoinTokenOutput>();
     final burn = outputs.whereType<BitcoinBurnableOutput>();
     if (token || tokenInput.isNotEmpty || burn.isNotEmpty) {
-      throw const MessageException(
-          "Cash Token only work on Bitcoin cash network");
+      throw const MessageException("Cash Token only work on Bitcoin cash network");
     }
     for (final i in utxosInfo) {
       /// Verify each input for its association with this network's address. Raise an exception if the address is incorrect.
@@ -72,12 +76,15 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
   /// This method is used to create a dummy transaction,
   /// allowing us to obtain the size of the original transaction
   /// before conducting the actual transaction. This helps us estimate the transaction cost
-  static int estimateTransactionSize(
-      {required List<UtxoWithAddress> utxos,
-      required List<BitcoinBaseOutput> outputs,
-      required BasedUtxoNetwork network,
-      String? memo,
-      bool enableRBF = false}) {
+  static int estimateTransactionSize({
+    required List<UtxoWithAddress> utxos,
+    required List<BitcoinBaseOutput> outputs,
+    required BasedUtxoNetwork network,
+    String? memo,
+    bool enableRBF = false,
+    List<ECPrivateInfo>? inputPrivKeyInfos,
+    List<Outpoint>? vinOutpoints,
+  }) {
     final transactionBuilder = BitcoinTransactionBuilder(
       /// Now, we provide the UTXOs we want to spend.
       utxos: utxos,
@@ -109,6 +116,9 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
       /// We consider the transaction to be fake so that it doesn't check the amounts
       /// and doesn't generate errors when determining the transaction size.
       isFakeTransaction: true,
+
+      inputPrivKeyInfos: inputPrivKeyInfos,
+      vinOutpoints: vinOutpoints,
     );
 
     /// 64 byte schnorr signature length
@@ -119,8 +129,8 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
     const String fakeECDSASignatureBytes =
         "0101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101";
 
-    final transaction = transactionBuilder
-        .buildTransaction((trDigest, utxo, multiSigPublicKey, int sighash) {
+    final transaction =
+        transactionBuilder.buildTransaction((trDigest, utxo, multiSigPublicKey, int sighash) {
       if (utxo.utxo.isP2tr()) {
         return fakeSchnorSignaturBytes;
       } else {
@@ -130,8 +140,7 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
 
     /// Now we need the size of the transaction. If the transaction is a SegWit transaction,
     /// we use the getVSize method; otherwise, we use the getSize method to obtain the transaction size
-    final size =
-        transaction.hasSegwit ? transaction.getVSize() : transaction.getSize();
+    final size = transaction.hasSegwit ? transaction.getVSize() : transaction.getSize();
 
     return size;
   }
@@ -174,16 +183,12 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
       switch (utxo.utxo.scriptType) {
         case P2shAddressType.p2wshInP2sh:
           if (isTaproot) {
-            return multiSigAAddr
-                .toP2wshInP2shAddress(network: network)
-                .toScriptPubKey();
+            return multiSigAAddr.toP2wshInP2shAddress(network: network).toScriptPubKey();
           }
           return script;
         case SegwitAddresType.p2wsh:
           if (isTaproot) {
-            return multiSigAAddr
-                .toP2wshAddress(network: network)
-                .toScriptPubKey();
+            return multiSigAAddr.toP2wshAddress(network: network).toScriptPubKey();
           }
           return script;
         case P2shAddressType.p2pkhInP2sh:
@@ -192,8 +197,7 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
           }
           return script;
         default:
-          throw ArgumentError(
-              "unsuported multi-sig type ${utxo.utxo.scriptType}");
+          throw ArgumentError("unsuported multi-sig type ${utxo.utxo.scriptType}");
       }
     }
 
@@ -214,7 +218,9 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
         }
         return senderPub.toP2pkhAddress().toScriptPubKey();
       case SegwitAddresType.p2tr:
-        return senderPub.toTaprootAddress().toScriptPubKey();
+        return senderPub
+            .toTaprootAddress(tweak: utxo.utxo.isSilentPayment != true)
+            .toScriptPubKey();
       case P2shAddressType.p2pkhInP2sh:
         if (isTaproot) {
           return senderPub.toP2pkhInP2sh().toScriptPubKey();
@@ -254,13 +260,8 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
 //
   /// Returns:
   /// - List<int>: representing the transaction digest to be used for signing the input.
-  List<int> _generateTransactionDigest(
-      Script scriptPubKeys,
-      int input,
-      UtxoWithAddress utox,
-      BtcTransaction transaction,
-      List<BigInt> taprootAmounts,
-      List<Script> tapRootPubKeys) {
+  List<int> _generateTransactionDigest(Script scriptPubKeys, int input, UtxoWithAddress utox,
+      BtcTransaction transaction, List<BigInt> taprootAmounts, List<Script> tapRootPubKeys) {
     if (utox.utxo.isSegwit()) {
       if (utox.utxo.isP2tr()) {
         return transaction.getTransactionTaprootDigset(
@@ -272,8 +273,7 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
       return transaction.getTransactionSegwitDigit(
           txInIndex: input, script: scriptPubKeys, amount: utox.utxo.value);
     }
-    return transaction.getTransactionDigest(
-        txInIndex: input, script: scriptPubKeys);
+    return transaction.getTransactionDigest(txInIndex: input, script: scriptPubKeys);
   }
 
   /// buildP2wshOrP2shScriptSig constructs and returns a script signature (represented as a List of strings)
@@ -286,8 +286,7 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
   //
   /// Returns:
   /// - List<String>: A List of strings representing the script signature for the P2WSH or P2SH input.
-  List<String> _buildMiltisigUnlockingScript(
-      List<String> signedDigest, UtxoWithAddress utx) {
+  List<String> _buildMiltisigUnlockingScript(List<String> signedDigest, UtxoWithAddress utx) {
     /// The constructed script signature consists of the signed digest elements followed by
     /// the script details of the multi-signature address.
 
@@ -307,14 +306,12 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
     if (utxo.isMultiSig()) {
       switch (utxo.utxo.scriptType) {
         case P2shAddressType.p2wshInP2sh:
-          final script = Script.fromRaw(
-              hexData: utxo.multiSigAddress.multiSigScript.toHex(),
-              hasSegwit: true);
+          final script =
+              Script.fromRaw(hexData: utxo.multiSigAddress.multiSigScript.toHex(), hasSegwit: true);
           final p2wsh = P2wshAddress.fromRedeemScript(script: script);
           return [p2wsh.toScriptPubKey().toHex()];
         default:
-          throw Exception(
-              "Invalid p2sh nested segwit type ${utxo.utxo.scriptType.value}");
+          throw Exception("Invalid p2sh nested segwit type ${utxo.utxo.scriptType.value}");
       }
     }
     final senderPub = utxo.public();
@@ -326,8 +323,7 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
         final script = senderPub.toP2wpkhAddress().toScriptPubKey();
         return [script.toHex()];
       default:
-        throw Exception(
-            "Invalid p2sh nested segwit type ${utxo.utxo.scriptType.value}");
+        throw Exception("Invalid p2sh nested segwit type ${utxo.utxo.scriptType.value}");
     }
   }
 
@@ -352,8 +348,7 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
         case P2shAddressType.p2wpkhInP2sh:
           return [signedDigest, senderPub.toHex()];
         default:
-          throw Exception(
-              "invalid segwit address type ${utx.utxo.scriptType.value}");
+          throw Exception("invalid segwit address type ${utx.utxo.scriptType.value}");
       }
     } else {
       switch (utx.utxo.scriptType) {
@@ -392,11 +387,10 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
     }
     List<TxInput> inputs = sortedUtxos.map((e) => e.utxo.toInput()).toList();
     if (enableRBF && inputs.isNotEmpty) {
-      inputs[0] = inputs[0]
-          .copyWith(sequence: BitcoinOpCodeConst.REPLACE_BY_FEE_SEQUENCE);
+      inputs[0] = inputs[0].copyWith(sequence: BitcoinOpCodeConst.REPLACE_BY_FEE_SEQUENCE);
     }
-    return Tuple(List<TxInput>.unmodifiable(inputs),
-        List<UtxoWithAddress>.unmodifiable(sortedUtxos));
+    return Tuple(
+        List<TxInput>.unmodifiable(inputs), List<UtxoWithAddress>.unmodifiable(sortedUtxos));
   }
   // List<TxInput> _buildInputs() {
   //   List<TxInput> inputs = utxos.map((e) => e.utxo.toInput()).toList();
@@ -424,8 +418,7 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
   List<TxOutput> _buildOutputs() {
     List<TxOutput> builtOutputs = outputs.map((e) => e.toOutput).toList();
     if (memo != null) {
-      builtOutputs
-          .add(TxOutput(amount: BigInt.zero, scriptPubKey: _opReturn(memo!)));
+      builtOutputs.add(TxOutput(amount: BigInt.zero, scriptPubKey: _opReturn(memo!)));
     }
     if (outputOrdering == BitcoinOrdering.shuffle) {
       builtOutputs = builtOutputs..shuffle();
@@ -435,14 +428,56 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
           (a, b) {
             final valueComparison = a.amount.compareTo(b.amount);
             if (valueComparison == 0) {
-              return BytesUtils.compareBytes(
-                  a.scriptPubKey.toBytes(), b.scriptPubKey.toBytes());
+              return BytesUtils.compareBytes(a.scriptPubKey.toBytes(), b.scriptPubKey.toBytes());
             }
             return valueComparison;
           },
         );
     }
     return List<TxOutput>.unmodifiable(builtOutputs);
+  }
+
+  void _buildSilentPayments() {
+    List<SilentPaymentDestination> silentPaymentDestinations = [];
+
+    for (final out in outputs as List<BitcoinOutput>) {
+      final address = out.address;
+      final amount = out.value;
+
+      if (address is SilentPaymentAddress) {
+        silentPaymentDestinations.add(
+          SilentPaymentDestination.fromAddress(
+            address.toAddress(network),
+            amount.toInt(),
+          ),
+        );
+      }
+    }
+
+    if (silentPaymentDestinations.isNotEmpty) {
+      final sendingOutputs = SilentPaymentBuilder(vinOutpoints: vinOutpoints!)
+          .createOutputs(inputPrivKeyInfos!, silentPaymentDestinations);
+
+      final outputsAdded = [];
+
+      for (var i = 0; i < outputs.length; i++) {
+        final out = outputs[i] as BitcoinOutput;
+
+        final silentOutputs = sendingOutputs[out.address.toAddress(network)];
+
+        if (silentOutputs != null) {
+          final silentOutput =
+              silentOutputs.firstWhere((element) => !outputsAdded.contains(element));
+
+          outputs[i] = BitcoinOutput(
+            address: silentOutput.address,
+            value: BigInt.from(silentOutput.amount),
+          );
+
+          outputsAdded.add(silentOutput);
+        }
+      }
+    }
   }
 
   /// The primary use case for OP_RETURN is data storage. You can embed various types of
@@ -471,6 +506,10 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
     final List<TxInput> inputs = sortedInputs.item1;
 
     final List<UtxoWithAddress> utxos = sortedInputs.item2;
+
+    if (inputPrivKeyInfos != null) {
+      _buildSilentPayments();
+    }
 
     /// build outout
     final outputs = _buildOutputs();
@@ -529,16 +568,12 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
         final multiSigAddress = utxos[i].multiSigAddress;
         int sumMultiSigWeight = 0;
         final mutlsiSigSignatures = <String>[];
-        for (int ownerIndex = 0;
-            ownerIndex < multiSigAddress.signers.length;
-            ownerIndex++) {
+        for (int ownerIndex = 0; ownerIndex < multiSigAddress.signers.length; ownerIndex++) {
           /// now we need sign the transaction digest
-          final sig = sign(digest, utxos[i],
-              multiSigAddress.signers[ownerIndex].publicKey, sighash);
+          final sig =
+              sign(digest, utxos[i], multiSigAddress.signers[ownerIndex].publicKey, sighash);
           if (sig.isEmpty) continue;
-          for (int weight = 0;
-              weight < multiSigAddress.signers[ownerIndex].weight;
-              weight++) {
+          for (int weight = 0; weight < multiSigAddress.signers[ownerIndex].weight; weight++) {
             if (mutlsiSigSignatures.length >= multiSigAddress.threshold) {
               break;
             }

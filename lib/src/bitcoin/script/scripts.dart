@@ -6,3 +6,4 @@ export 'sequence.dart';
 export 'transaction.dart';
 export 'witness.dart';
 export 'op_code/constant_lib.dart';
+export 'outpoint.dart';

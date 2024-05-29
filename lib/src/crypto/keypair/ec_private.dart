@@ -47,6 +47,10 @@ class ECPrivate {
     return prive.raw;
   }
 
+  BigInt toBigInt() {
+    return BigintUtils.fromBytes(prive.raw);
+  }
+
   String toHex() {
     return BytesUtils.toHexString(prive.raw);
   }
@@ -110,8 +114,41 @@ class ECPrivate {
     return BytesUtils.toHexString(signatur);
   }
 
+  ECPrivate toTweakedTaprootKey() {
+    final t = P2TRUtils.calculateTweek(getPublic().publicKey.point as ProjectiveECCPoint);
+
+    return ECPrivate.fromBytes(
+        BitcoinSignerUtils.calculatePrivateTweek(toBytes(), BigintUtils.fromBytes(t)));
+  }
+
   static ECPrivate random() {
     final secret = QuickCrypto.generateRandom();
     return ECPrivate.fromBytes(secret);
+  }
+
+  ECPrivate tweakAdd(BigInt tweak) {
+    return ECPrivate.fromBytes(BigintUtils.toBytes(
+      (BigintUtils.fromBytes(prive.raw) + tweak) % Curves.generatorSecp256k1.order!,
+      length: getPublic().publicKey.point.curve.baselen,
+    ));
+  }
+
+  ECPrivate tweakMul(BigInt tweak) {
+    return ECPrivate.fromBytes(BigintUtils.toBytes(
+      (BigintUtils.fromBytes(prive.raw) * tweak) % Curves.generatorSecp256k1.order!,
+      length: getPublic().publicKey.point.curve.baselen,
+    ));
+  }
+
+  ECPrivate negate() {
+    // Negate the private key by subtracting from the order of the curve
+    return ECPrivate.fromBytes(BigintUtils.toBytes(
+      Curves.generatorSecp256k1.order! - BigintUtils.fromBytes(prive.raw),
+      length: getPublic().publicKey.point.curve.baselen,
+    ));
+  }
+
+  ECPrivate clone() {
+    return ECPrivate.fromBytes(prive.raw);
   }
 }
