@@ -58,6 +58,26 @@ class DogeAddress extends BitcoinNetworkAddress<DogecoinNetwork> {
   final String address;
 }
 
+/// A concrete implementation of [BitcoinNetworkAddress] for Pepecoin network.
+class PepeAddress extends BitcoinNetworkAddress<PepeNetwork> {
+  const PepeAddress._(this.baseAddress, this.address);
+  factory PepeAddress(String address,
+      {PepeNetwork network = PepeNetwork.mainnet}) {
+    return PepeAddress._(
+        _BitcoinAddressUtils.decodeAddress(address, network), address);
+  }
+  factory PepeAddress.fromBaseAddress(BitcoinBaseAddress address,
+      {PepeNetwork network = PepeNetwork.mainnet}) {
+    final baseAddress = _BitcoinAddressUtils.validateAddress(address, network);
+    return PepeAddress._(baseAddress, baseAddress.toAddress(network));
+  }
+  @override
+  final BitcoinBaseAddress baseAddress;
+
+  @override
+  final String address;
+}
+
 /// A concrete implementation of [BitcoinNetworkAddress] for Litecoin network.
 class LitecoinAddress extends BitcoinNetworkAddress<LitecoinNetwork> {
   LitecoinAddress._(this.baseAddress, this.address);
@@ -87,7 +107,7 @@ class BitcoinCashAddress extends BitcoinNetworkAddress<BitcoinCashNetwork> {
         address, network,
         validateNetworkHRP: validateNetworkPrefix);
     if (decodeAddress == null) {
-      throw MessageException("Invalid ${network.value} address.");
+      throw BitcoinBasePluginException("Invalid ${network.value} address.");
     }
     return BitcoinCashAddress._(decodeAddress, address);
   }

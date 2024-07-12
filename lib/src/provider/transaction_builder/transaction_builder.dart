@@ -1,4 +1,5 @@
 import 'package:bitcoin_base/bitcoin_base.dart';
+import 'package:bitcoin_base/src/exception/exception.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
 
 /// A versatile transaction builder designed to support various plugin-supported networks
@@ -52,14 +53,14 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
   /// validate network and address suport before create transaction
   void _validateBuilder() {
     if (network is BitcoinCashNetwork || network is BitcoinSVNetwork) {
-      throw const MessageException(
+      throw const BitcoinBasePluginException(
           "invalid network for BitcoinCashNetwork and BSVNetwork use ForkedTransactionBuilder");
     }
     final token = utxosInfo.any((element) => element.utxo.token != null);
     final tokenInput = outputs.whereType<BitcoinTokenOutput>();
     final burn = outputs.whereType<BitcoinBurnableOutput>();
     if (token || tokenInput.isNotEmpty || burn.isNotEmpty) {
-      throw const MessageException("Cash Token only work on Bitcoin cash network");
+      throw const BitcoinBasePluginException("Cash Token only work on Bitcoin cash network");
     }
     for (final i in utxosInfo) {
       /// Verify each input for its association with this network's address. Raise an exception if the address is incorrect.
@@ -197,7 +198,7 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
           }
           return script;
         default:
-          throw ArgumentError("unsuported multi-sig type ${utxo.utxo.scriptType}");
+          throw BitcoinBasePluginException("unsuported multi-sig type ${utxo.utxo.scriptType}");
       }
     }
 
@@ -242,7 +243,7 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
         }
         return senderPub.toRedeemScript();
     }
-    throw ArgumentError("invalid bitcoin address type");
+    throw const BitcoinBasePluginException("invalid bitcoin address type");
   }
 
   /// generateTransactionDigest generates and returns a transaction digest for a given input in the context of a Bitcoin
@@ -311,7 +312,8 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
           final p2wsh = P2wshAddress.fromRedeemScript(script: script);
           return [p2wsh.toScriptPubKey().toHex()];
         default:
-          throw Exception("Invalid p2sh nested segwit type ${utxo.utxo.scriptType.value}");
+          throw BitcoinBasePluginException(
+              "Invalid p2sh nested segwit type ${utxo.utxo.scriptType.value}");
       }
     }
     final senderPub = utxo.public();
@@ -323,7 +325,8 @@ class BitcoinTransactionBuilder implements BasedBitcoinTransacationBuilder {
         final script = senderPub.toP2wpkhAddress().toScriptPubKey();
         return [script.toHex()];
       default:
-        throw Exception("Invalid p2sh nested segwit type ${utxo.utxo.scriptType.value}");
+        throw BitcoinBasePluginException(
+            "Invalid p2sh nested segwit type ${utxo.utxo.scriptType.value}");
     }
   }
 
@@ -348,7 +351,8 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
         case P2shAddressType.p2wpkhInP2sh:
           return [signedDigest, senderPub.toHex()];
         default:
-          throw Exception("invalid segwit address type ${utx.utxo.scriptType.value}");
+          throw BitcoinBasePluginException(
+              "invalid segwit address type ${utx.utxo.scriptType.value}");
       }
     } else {
       switch (utx.utxo.scriptType) {
@@ -363,7 +367,7 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
           final script = senderPub.toRedeemScript();
           return [signedDigest, script.toHex()];
         default:
-          throw Exception("invalid address type ${utx.utxo.scriptType.value}");
+          throw BitcoinBasePluginException("invalid address type ${utx.utxo.scriptType.value}");
       }
     }
   }
@@ -531,7 +535,7 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
 
     /// We will check whether you have spent the correct amounts or not
     if (!isFakeTransaction && sumAmountsWithFee != sumUtxoAmount) {
-      throw ArgumentError('Sum value of utxo not spending');
+      throw const BitcoinBasePluginException('Sum value of utxo not spending');
     }
 
     /// create new transaction with inputs and outputs and isSegwit transaction or not
@@ -585,7 +589,7 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
           }
         }
         if (sumMultiSigWeight != multiSigAddress.threshold) {
-          throw StateError("some multisig signature does not exist");
+          throw const BitcoinBasePluginException("some multisig signature does not exist");
         }
         _addUnlockScriptScript(
             hasSegwit: hasSegwit,
@@ -598,6 +602,157 @@ that demonstrate the right to spend the bitcoins associated with the correspondi
 
       /// now we need sign the transaction digest
       final sig = sign(digest, utxos[i], utxos[i].public().toHex(), sighash);
+      _addUnlockScriptScript(
+          hasSegwit: hasSegwit,
+          input: inputs[i],
+          signatures: [sig],
+          utxo: utxos[i],
+          witnesses: witnesses);
+    }
+
+    /// ok we now check if the transaction is segwit We add all witnesses to the transaction
+    if (hasSegwit) {
+      // add all witnesses to the transaction
+      transaction = transaction.copyWith(witnesses: witnesses);
+    }
+
+    return transaction;
+  }
+
+  @override
+  Map<String, int> getSignatureCount() {
+    final sortedInputs = _buildInputs();
+    final List<TxInput> inputs = sortedInputs.item1;
+    final List<UtxoWithAddress> utxos = sortedInputs.item2;
+    final Map<String, int> count = {};
+
+    for (int i = 0; i < inputs.length; i++) {
+      final indexUtxo = utxos[i];
+      if (indexUtxo.isMultiSig()) {
+        final multiSigAddress = indexUtxo.multiSigAddress;
+        int sumMultiSigWeight = 0;
+        final mutlsiSigSignatures = <String>[];
+        for (int ownerIndex = 0; ownerIndex < multiSigAddress.signers.length; ownerIndex++) {
+          for (int weight = 0; weight < multiSigAddress.signers[ownerIndex].weight; weight++) {
+            if (mutlsiSigSignatures.length >= multiSigAddress.threshold) {
+              break;
+            }
+            mutlsiSigSignatures.add("");
+            count[multiSigAddress.signers[ownerIndex].publicKey] =
+                (count[multiSigAddress.signers[ownerIndex].publicKey] ?? 0) + 1;
+          }
+          sumMultiSigWeight += multiSigAddress.signers[ownerIndex].weight;
+          if (sumMultiSigWeight >= multiSigAddress.threshold) {
+            break;
+          }
+        }
+        if (sumMultiSigWeight != multiSigAddress.threshold) {
+          throw const BitcoinBasePluginException("some multisig signature does not exist");
+        }
+        continue;
+      }
+      final pubkey = indexUtxo.public().toHex();
+      count[pubkey] = (count[pubkey] ?? 0) + 1;
+    }
+    return count;
+  }
+
+  @override
+  Future<BtcTransaction> buildTransactionAsync(BitcoinSignerCallBackAsync sign) async {
+    /// build inputs
+    final sortedInputs = _buildInputs();
+
+    final List<TxInput> inputs = sortedInputs.item1;
+
+    final List<UtxoWithAddress> utxos = sortedInputs.item2;
+
+    /// build outout
+    final outputs = _buildOutputs();
+
+    /// check transaction is segwit
+    final hasSegwit = _hasSegwit();
+
+    /// check transaction is taproot
+    final hasTaproot = _hasTaproot();
+
+    /// sum of amounts you filled in outputs
+    final sumOutputAmounts = _sumOutputAmounts(outputs);
+
+    /// sum of UTXOS amount
+    final sumUtxoAmount = utxos.sumOfUtxosValue();
+
+    /// sum of outputs amount + transcation fee
+    final sumAmountsWithFee = (sumOutputAmounts + fee);
+
+    /// We will check whether you have spent the correct amounts or not
+    if (!isFakeTransaction && sumAmountsWithFee != sumUtxoAmount) {
+      throw const BitcoinBasePluginException('Sum value of utxo not spending');
+    }
+
+    /// create new transaction with inputs and outputs and isSegwit transaction or not
+    BtcTransaction transaction =
+        BtcTransaction(inputs: inputs, outputs: outputs, hasSegwit: hasSegwit);
+
+    /// we define empty witnesses. maybe the transaction is segwit and We need this
+    final witnesses = <TxWitnessInput>[];
+
+    /// when the transaction is taproot and we must use getTaproot tansaction digest
+    /// we need all of inputs amounts and owner script pub keys
+    List<BigInt> taprootAmounts = [];
+    List<Script> taprootScripts = [];
+
+    if (hasTaproot) {
+      taprootAmounts = utxos.map((e) => e.utxo.value).toList();
+      taprootScripts = utxos.map((e) => _findLockingScript(e, true)).toList();
+    }
+
+    /// Well, now let's do what we want for each input
+    for (int i = 0; i < inputs.length; i++) {
+      /// We receive the owner's ScriptPubKey
+      final script = _findLockingScript(utxos[i], false);
+
+      /// We generate transaction digest for current input
+      final digest = _generateTransactionDigest(
+          script, i, utxos[i], transaction, taprootAmounts, taprootScripts);
+      final int sighash = utxos[i].utxo.isP2tr()
+          ? BitcoinOpCodeConst.TAPROOT_SIGHASH_ALL
+          : BitcoinOpCodeConst.SIGHASH_ALL;
+
+      /// handle multisig address
+      if (utxos[i].isMultiSig()) {
+        final multiSigAddress = utxos[i].multiSigAddress;
+        int sumMultiSigWeight = 0;
+        final mutlsiSigSignatures = <String>[];
+        for (int ownerIndex = 0; ownerIndex < multiSigAddress.signers.length; ownerIndex++) {
+          /// now we need sign the transaction digest
+          final sig =
+              await sign(digest, utxos[i], multiSigAddress.signers[ownerIndex].publicKey, sighash);
+          if (sig.isEmpty) continue;
+          for (int weight = 0; weight < multiSigAddress.signers[ownerIndex].weight; weight++) {
+            if (mutlsiSigSignatures.length >= multiSigAddress.threshold) {
+              break;
+            }
+            mutlsiSigSignatures.add(sig);
+          }
+          sumMultiSigWeight += multiSigAddress.signers[ownerIndex].weight;
+          if (sumMultiSigWeight >= multiSigAddress.threshold) {
+            break;
+          }
+        }
+        if (sumMultiSigWeight != multiSigAddress.threshold) {
+          throw const BitcoinBasePluginException("some multisig signature does not exist");
+        }
+        _addUnlockScriptScript(
+            hasSegwit: hasSegwit,
+            input: inputs[i],
+            signatures: mutlsiSigSignatures,
+            utxo: utxos[i],
+            witnesses: witnesses);
+        continue;
+      }
+
+      /// now we need sign the transaction digest
+      final sig = await sign(digest, utxos[i], utxos[i].public().toHex(), sighash);
       _addUnlockScriptScript(
           hasSegwit: hasSegwit,
           input: inputs[i],

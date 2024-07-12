@@ -12,7 +12,7 @@ abstract class LegacyAddress implements BitcoinBaseAddress {
     final decode = _BitcoinAddressUtils.decodeLegacyAddressWithNetworkAndType(
         address: address, type: type, network: network);
     if (decode == null) {
-      throw MessageException("Invalid ${network.conf.coinName} address");
+      throw BitcoinBasePluginException("Invalid ${network.conf.coinName} address");
     }
     _addressProgram = decode;
   }
@@ -106,7 +106,7 @@ class P2shAddress extends LegacyAddress {
   @override
   String toAddress(BasedUtxoNetwork network) {
     if (!network.supportedAddress.contains(type)) {
-      throw MessageException("network does not support ${type.value} address");
+      throw BitcoinBasePluginException("network does not support ${type.value} address");
     }
     return super.toAddress(network);
   }
