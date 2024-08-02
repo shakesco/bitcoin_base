@@ -1,6 +1,7 @@
 import 'package:bitcoin_base/src/bitcoin/address/address.dart';
 import 'package:bitcoin_base/src/bitcoin/script/script.dart';
 import 'package:bitcoin_base/src/exception/exception.dart';
+import 'package:bitcoin_base/src/models/network.dart';
 import 'package:blockchain_utils/blockchain_utils.dart';
 import 'package:blockchain_utils/crypto/crypto/cdsa/point/base.dart';
 
@@ -143,6 +144,24 @@ class ECPublic {
     final p2sh = toP2wshAddress(compressed: compressed);
     return P2shAddress.fromRedeemScript(
         script: p2sh.toScriptPubKey(), type: P2shAddressType.p2wshInP2sh);
+  }
+
+  bool compareToAddress(BitcoinBaseAddress other, BasedUtxoNetwork network) {
+    late BitcoinBaseAddress address;
+
+    if (other is P2pkAddress) {
+      address = toP2pkAddress();
+    } else if (other is P2pkhAddress) {
+      address = toP2pkhAddress();
+    } else if (other is P2wpkhAddress) {
+      address = toP2wpkhAddress();
+    } else if (other is P2wshAddress) {
+      address = toP2wshAddress();
+    } else if (other is P2trAddress) {
+      address = toTaprootAddress();
+    }
+
+    return address.toAddress(network) == other.toAddress(network);
   }
 
   /// toBytes returns the uncompressed byte representation of the ECPublic key.

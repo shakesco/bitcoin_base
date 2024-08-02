@@ -20,11 +20,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: cake-update-v1
-      resolved-ref: "7864de88e9a0b598a61b1e50d26f6f4477a6411c"
+      ref: cake-update-v2
+      resolved-ref: "2767a54ed2b0a23494e4e96a3fe5b5022b834b70"
       url: "https://github.com/cake-tech/blockchain_utils"
     source: git
-    version: "1.6.0"
+    version: "3.3.0"
   boolean_selector:
     dependency: transitive
     description:

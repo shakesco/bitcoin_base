@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:blockchain_utils/utils/utils.dart';
 
 class ScriptWitness {
