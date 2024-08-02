@@ -70,6 +70,12 @@ class Script {
   BitcoinAddressType? getAddressType() {
     if (script.isEmpty) return null;
 
+    if (script.every((x) => x is int) && script.length == 66 &&
+       (script[0]  == 2 || script[0]  == 3) &&
+       (script[33] == 2 || script[33] == 3)) {
+      return SegwitAddresType.mweb;
+    }
+
     final first = findScriptParam(0);
     final sec = findScriptParam(1);
     if (sec == null || sec is! String) {
@@ -116,6 +122,7 @@ class Script {
   /// returns a serialized byte version of the script
   List<int> toBytes() {
     if (script.isEmpty) return <int>[];
+    if (script.every((x) => x is int)) return script.cast();
     DynamicByteTracker scriptBytes = DynamicByteTracker();
     for (var token in script) {
       if (BitcoinOpCodeConst.OP_CODES.containsKey(token)) {
