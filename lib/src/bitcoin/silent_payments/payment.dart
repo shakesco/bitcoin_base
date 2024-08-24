@@ -13,7 +13,8 @@ class SilentPaymentScanningOutput {
   final String tweak;
   final String? label;
 
-  SilentPaymentScanningOutput({required this.output, required this.tweak, this.label});
+  SilentPaymentScanningOutput(
+      {required this.output, required this.tweak, this.label});
 }
 
 class ECPrivateInfo {
@@ -46,8 +47,8 @@ class SilentPaymentBuilder {
     final head = pubkeys!.first;
     final tail = pubkeys!.sublist(1);
 
-    A_sum =
-        tail.fold<ECPublic>(head, (acc, item) => ECPublic.fromBip32(acc.publicKey).pubkeyAdd(item));
+    A_sum = tail.fold<ECPublic>(
+        head, (acc, item) => ECPublic.fromBip32(acc.publicKey).pubkeyAdd(item));
   }
 
   void _getInputHash() {
@@ -56,7 +57,8 @@ class SilentPaymentBuilder {
     for (final outpoint in vinOutpoints) {
       sortedOutpoints.add(BytesUtils.concatBytes([
         BytesUtils.fromHexString(outpoint.txid).reversed.toList(),
-        BigintUtils.toBytes(BigInt.from(outpoint.index), length: 4, order: Endian.little)
+        BigintUtils.toBytes(BigInt.from(outpoint.index),
+            length: 4, order: Endian.little)
       ]));
     }
 
@@ -64,7 +66,8 @@ class SilentPaymentBuilder {
     final lowestOutpoint = sortedOutpoints.first;
 
     inputHash = taggedHash(
-        BytesUtils.concatBytes([lowestOutpoint, A_sum!.toCompressedBytes()]), "BIP0352/Inputs");
+        BytesUtils.concatBytes([lowestOutpoint, A_sum!.toCompressedBytes()]),
+        "BIP0352/Inputs");
   }
 
   Map<String, List<SilentPaymentOutput>> createOutputs(
@@ -100,7 +103,8 @@ class SilentPaymentBuilder {
     A_sum = a_sum!.getPublic();
     _getInputHash();
 
-    Map<String, Map<String, List<SilentPaymentDestination>>> silentPaymentGroups = {};
+    Map<String, Map<String, List<SilentPaymentDestination>>>
+        silentPaymentGroups = {};
 
     for (final silentPaymentDestination in silentPaymentDestinations) {
       final B_scan = silentPaymentDestination.B_scan;
@@ -117,7 +121,8 @@ class SilentPaymentBuilder {
           ecdhSharedSecret: [...recipients, silentPaymentDestination]
         };
       } else {
-        final senderPartialSecret = a_sum.tweakMul(BigintUtils.fromBytes(inputHash!)).toBytes();
+        final senderPartialSecret =
+            a_sum.tweakMul(BigintUtils.fromBytes(inputHash!)).toBytes();
         final ecdhSharedSecret =
             B_scan.tweakMul(BigintUtils.fromBytes(senderPartialSecret)).toHex();
 
@@ -142,8 +147,8 @@ class SilentPaymentBuilder {
             "BIP0352/SharedSecret");
 
         final P_mn = destination.B_spend.tweakAdd(BigintUtils.fromBytes(t_k));
-        final resOutput =
-            SilentPaymentOutput(P_mn.toTaprootAddress(tweak: false), destination.amount);
+        final resOutput = SilentPaymentOutput(
+            P_mn.toTaprootAddress(tweak: false), destination.amount);
 
         if (result.containsKey(destination.toString())) {
           result[destination.toString()]!.add(resOutput);
@@ -184,13 +189,16 @@ class SilentPaymentBuilder {
       final length = outputsToCheck.length;
 
       for (var i = 0; i < length; i++) {
-        final output = outputsToCheck[i].script.toBytes().sublist(2);
+        final output = outputsToCheck[i].script.toBytes().sublist(3);
         final outputPubkey = BytesUtils.toHexString(output);
         final outputAmount = outputsToCheck[i].value.toInt();
 
-        if ((BytesUtils.compareBytes(output, P_k.toCompressedBytes().sublist(1)) == 0)) {
+        if ((BytesUtils.compareBytes(
+                output, P_k.toCompressedBytes().sublist(1)) ==
+            0)) {
           matches[outputPubkey] = SilentPaymentScanningOutput(
-            output: SilentPaymentOutput(P_k.toTaprootAddress(tweak: false), outputAmount),
+            output: SilentPaymentOutput(
+                P_k.toTaprootAddress(tweak: false), outputAmount),
             tweak: BytesUtils.toHexString(t_k),
           );
           outputsToCheck.removeAt(i);
@@ -203,17 +211,21 @@ class SilentPaymentBuilder {
           var m_G = precomputedLabels[m_G_sub.toHex()];
 
           if (m_G == null) {
-            m_G_sub = ECPublic.fromBytes(output).negate().pubkeyAdd(P_k.negate());
+            m_G_sub =
+                ECPublic.fromBytes(output).negate().pubkeyAdd(P_k.negate());
             m_G = precomputedLabels[m_G_sub.toHex()];
           }
 
           if (m_G != null) {
-            final P_km = P_k.tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)));
+            final P_km = P_k.tweakAdd(
+                BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)));
 
             matches[outputPubkey] = SilentPaymentScanningOutput(
-              output: SilentPaymentOutput(P_km.toTaprootAddress(tweak: false), outputAmount),
+              output: SilentPaymentOutput(
+                  P_km.toTaprootAddress(tweak: false), outputAmount),
               tweak: ECPrivate.fromBytes(t_k)
-                  .tweakAdd(BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)))
+                  .tweakAdd(
+                      BigintUtils.fromBytes(BytesUtils.fromHexString(m_G)))
                   .toHex(),
               label: m_G,
             );
@@ -234,9 +246,33 @@ class SilentPaymentBuilder {
 
     return matches;
   }
+
+  ECPrivate spendOutputs(
+    ECPrivate b_scan,
+    ECPrivate b_spend,
+  ) {
+    final tweakDataForRecipient = receiverTweak != null
+        ? ECPublic.fromHex(receiverTweak!)
+        : A_sum!.tweakMul(BigintUtils.fromBytes(inputHash!));
+    final ecdhSharedSecret = tweakDataForRecipient.tweakMul(b_scan.toBigInt());
+
+    var k = 0;
+
+    final t_k = taggedHash(
+        BytesUtils.concatBytes([
+          ecdhSharedSecret.toCompressedBytes(),
+          BigintUtils.toBytes(BigInt.from(k), length: 4, order: Endian.big)
+        ]),
+        "BIP0352/SharedSecret");
+
+    final p_k = b_spend.tweakAdd(BigintUtils.fromBytes(t_k));
+
+    return p_k;
+  }
 }
 
 BitcoinScriptOutput getScriptFromOutput(String pubkey, int amount) {
   return BitcoinScriptOutput(
-      script: Script(script: [BitcoinOpCodeConst.OP_1, pubkey]), value: BigInt.from(amount));
+      script: Script(script: [BitcoinOpCodeConst.OP_1, pubkey]),
+      value: BigInt.from(amount));
 }
