@@ -189,7 +189,7 @@ class SilentPaymentBuilder {
       final length = outputsToCheck.length;
 
       for (var i = 0; i < length; i++) {
-        final output = outputsToCheck[i].script.toBytes().sublist(3);
+        final output = outputsToCheck[i].script.toBytes().sublist(2);
         final outputPubkey = BytesUtils.toHexString(output);
         final outputAmount = outputsToCheck[i].value.toInt();
 
